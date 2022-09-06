@@ -1,0 +1,25 @@
+[package]
+name = "uprava"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+# atlassian-jira-rest-types = "0.2"
+atlassian-jira-rest-types = { path = "/tmp/atlassian-jira-rest-types" }
+clap = { version = "3", features = ["derive"] }
+clap_complete_command = "0.3"
+reqwest = {version = "0", features = ["blocking"] }
+anyhow = "1"
+url = { version = "2", features = ["serde"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+serde_yaml = "0.7"
+chrono = { version = "0.4", features = ["serde"] }
+slog = "2"
+slog-scope = "4"
+slog-syslog = "0"
+humantime-serde = "1.0"
+humantime = "2"
+tokio = { version = "1.20", features = ["full"] }
