@@ -1,5 +1,9 @@
+use std::collections::HashSet;
+
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
+
+use crate::report_data::IssueID;
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct Roadmap;
@@ -85,7 +89,7 @@ impl Roadmap {
                 })
         });
 
-        for issue in issues {
+        for issue in &issues {
             let col1 = self.get_task(issue);
             let col2 = match &issue.custom_fields.epic_link {
                 None => "",
@@ -122,9 +126,26 @@ impl Roadmap {
             println!("| {} | {} | {} | {} |", col1, col2, col3, col4)
         }
 
+        let local_epics: HashSet<_> = issues
+            .iter()
+            .filter_map(|issue| {
+                issue
+                    .custom_fields
+                    .epic_link
+                    .as_ref()
+                    .map(|key| IssueID::new(&issue.jira, key))
+            })
+            .collect();
+
         println!("\nh1. Эпики\n");
         println!("|| Эпик || Описание эпика ||");
-        for epic in data.epics.all().values() {
+        for epic in data.epics.all().iter().filter_map(|(k, v)| {
+            if local_epics.contains(k) {
+                Some(v)
+            } else {
+                None
+            }
+        }) {
             if let Some(epic_name) = &epic.custom_fields.epic_name {
                 let mut issue_url = epic.jira.base_url.clone();
                 issue_url.set_path(&format!("browse/{}", epic.issue.key));
@@ -139,6 +160,8 @@ impl Roadmap {
                 )
             }
         }
+
+        println!("\nh1. Команда\n");
 
         Ok(())
     }
