@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use anyhow::{format_err, Result};
 use serde::{Deserialize, Serialize};
 
-use crate::jira::JiraServer;
+use crate::{confluence::ConfluenceServer, jira::JiraServer};
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct JiraQueryCustomField {
@@ -21,6 +21,9 @@ pub struct Config {
     pub default_jira_instance: JiraServer,
     #[serde(default)]
     pub jira_instances: HashMap<String, JiraServer>,
+    pub default_confluence_instance: ConfluenceServer,
+    #[serde(default)]
+    pub confluence_instances: HashMap<String, ConfluenceServer>,
     #[serde(default)]
     pub reports: HashMap<String, crate::report::Report>,
 }

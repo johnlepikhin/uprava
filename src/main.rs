@@ -115,6 +115,84 @@ impl CmdJira {
 }
 
 #[derive(Args, Debug)]
+struct CmdConfluenceGetContent {
+    // #[clap(short)]
+    // format: crate::confluence::ContentPrinter,
+    space: String,
+    title: String,
+}
+
+impl CmdConfluenceGetContent {
+    pub async fn run(&self, config: crate::config::Config) -> Result<()> {
+        let content = config
+            .default_confluence_instance
+            .get_content(&self.space, &self.title)
+            .await
+            .unwrap();
+        println!("{}", content);
+        // println!("{}", self.format.data_to_string(&content).unwrap());
+        Ok(())
+    }
+}
+
+#[derive(Args, Debug)]
+struct CmdConfluenceGetArbitrary {
+    query: String,
+}
+
+impl CmdConfluenceGetArbitrary {
+    pub async fn run(&self, config: crate::config::Config) -> Result<()> {
+        let url = url::Url::parse(&format!("http://a/{}", self.query))?;
+
+        let params: Vec<_> = url
+            .query_pairs()
+            .map(|(k, v)| (k.into_owned(), v.into_owned()))
+            .collect();
+
+        let params: Vec<_> = params
+            .iter()
+            .map(|(k, v)| (k.as_str(), v.as_str()))
+            .collect();
+
+        let result = config
+            .default_confluence_instance
+            .http_get(url.path().to_string().as_str(), &params)
+            .await?;
+        println!("{}", result);
+        Ok(())
+    }
+}
+
+#[derive(Subcommand, Debug)]
+enum CmdConfluenceGet {
+    Content(CmdConfluenceGetContent),
+    Arbitrary(CmdConfluenceGetArbitrary),
+}
+
+impl CmdConfluenceGet {
+    pub async fn run(&self, config: crate::config::Config) -> Result<()> {
+        match self {
+            CmdConfluenceGet::Content(v) => v.run(config).await,
+            CmdConfluenceGet::Arbitrary(v) => v.run(config).await,
+        }
+    }
+}
+
+#[derive(Subcommand, Debug)]
+enum CmdConfluence {
+    #[clap(subcommand)]
+    Get(CmdConfluenceGet),
+}
+
+impl CmdConfluence {
+    pub async fn run(&self, config: crate::config::Config) -> Result<()> {
+        match self {
+            CmdConfluence::Get(v) => v.run(config).await,
+        }
+    }
+}
+
+#[derive(Args, Debug)]
 struct CmdReportMake {
     report: String,
 }
@@ -149,6 +227,8 @@ enum CmdApplication {
     #[clap(subcommand)]
     Jira(CmdJira),
     #[clap(subcommand)]
+    Confluence(CmdConfluence),
+    #[clap(subcommand)]
     Report(CmdReport),
     Completions {
         #[clap(arg_enum)]
@@ -170,6 +250,7 @@ impl Application {
     pub async fn run_command(&self, config: crate::config::Config) -> Result<()> {
         match &self.command {
             CmdApplication::Jira(v) => v.run(config).await,
+            CmdApplication::Confluence(v) => v.run(config).await,
             CmdApplication::Report(v) => v.run(config).await,
             CmdApplication::Completions { shell } => {
                 shell.generate(&mut Application::command(), &mut std::io::stdout());

@@ -116,6 +116,7 @@ pub struct JiraServer {
     pub base_url: url::Url,
     pub access: crate::authentication::Access,
     pub custom_fields: IssueCustomFieldsConfig,
+    #[serde(default)]
     pub relations_map: Vec<(String, String)>,
 }
 
