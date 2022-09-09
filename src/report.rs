@@ -64,11 +64,18 @@ pub struct ForeignRelation {
     pub to: ForeignRelationSubject,
 }
 
+fn default_dependencies_deepness() -> usize {
+    1
+}
+
 #[derive(Serialize, Deserialize, Clone)]
 pub struct Report {
     pub queries: Vec<crate::config::JiraQuery>,
     pub result: ReportResult,
+    #[serde(default)]
     pub foreign_relations: Vec<ForeignRelation>,
+    #[serde(default = "default_dependencies_deepness")]
+    pub dependencies_deepness: usize,
 }
 
 impl Report {

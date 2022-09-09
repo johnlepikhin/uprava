@@ -19,7 +19,9 @@ pub struct JiraQuery {
 #[derive(Serialize, Deserialize, Clone)]
 pub struct Config {
     pub default_jira_instance: JiraServer,
+    #[serde(default)]
     pub extra_jira_instances: HashMap<String, JiraServer>,
+    #[serde(default)]
     pub reports: HashMap<String, crate::report::Report>,
 }
 
