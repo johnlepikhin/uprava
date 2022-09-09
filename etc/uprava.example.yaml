@@ -1,64 +1,65 @@
-default_jira_instance: &default_jira_instance
-  base_url: https://jira.vk.team
-  # Доступ к джире
-  access:
-    # Тип доступа: персональный токен
-    Token:
-      # Токен взять из STDOUT указанной программы
-      Program: pass show mail.ru/jira.vk.team-roadmap-token
-      # Можно задать напрямую в конфиге:
-      # String: my_secret_token
-  # Маппинг полей джиры во внутренние стандартные поля
-  custom_fields:
-    # "Обоснование"
-    reason:
-      name: customfield_26600
-    # Ссылка на эпик
-    epic_link:
-      name: customfield_15500
-    # Имя эпика
-    epic_name:
-      name: customfield_15501
-    planned_start:
-      name: customfield_10050
-    planned_end:
-      name: customfield_10051
-  # Маппинг кастомных имён зависимостей в стандартные
-  relations_map:
-    -
-      # Кастомное имя зависимости
-      - "Ожидается для"
-      # Стандартное джира-имя зависимости
-      - "dependance for"
-    -
-      - "Ожидает"
-      - "depends on"
-    -
-      - "is triggered by"
-      - "dependance for"
-    -
-      - "is triggering"
-      - "depends on"
-    -
-      - "is caused by"
-      - "dependance for"
-    -
-      - "causes"
-      - "depends on"
-    -
-      - "Tested in"
-      - "mentions"
-    -
-      - "Tested for"
-      - "mentioned in"
-    -
-      - "Раскладка для"
-      - "mentions"
 
-extra_jira_instances:
+jira_instances:
+  default: &default_jira_instance
+    base_url: https://jira.vk.team
+    # Доступ к джире
+    access:
+      # Тип доступа: персональный токен
+      Token:
+        # Токен взять из STDOUT указанной программы
+        Program: pass show mail.ru/jira.vk.team-roadmap-token
+        # Можно задать напрямую в конфиге:
+        # String: my_secret_token
+    # Маппинг полей джиры во внутренние стандартные поля
+    custom_fields:
+      # "Обоснование"
+      reason:
+        name: customfield_26600
+      # Ссылка на эпик
+      epic_link:
+        name: customfield_15500
+      # Имя эпика
+      epic_name:
+        name: customfield_15501
+      planned_start:
+        name: customfield_10050
+      planned_end:
+        name: customfield_10051
+    # Маппинг кастомных имён зависимостей в стандартные
+    relations_map:
+      -
+        # Кастомное имя зависимости
+        - "Ожидается для"
+        # Стандартное джира-имя зависимости
+        - "dependance for"
+      -
+        - "Ожидает"
+        - "depends on"
+      -
+        - "is triggered by"
+        - "dependance for"
+      -
+        - "is triggering"
+        - "depends on"
+      -
+        - "is caused by"
+        - "dependance for"
+      -
+        - "causes"
+        - "depends on"
+      -
+        - "Tested in"
+        - "mentions"
+      -
+        - "Tested for"
+        - "mentioned in"
+      -
+        - "Раскладка для"
+        - "mentions"
   hr_jira: &hr_jira
     base_url: https://hr-jira.mail.ru
     access:
+      # Хак для старой джиры: значение сессионной куки (быстро протухает!)
       JSessionID:
         Program: pass show mail.ru/hr-jira.mail.ru-token
     custom_fields:
@@ -73,6 +74,8 @@ extra_jira_instances:
       planned_end:
         name: NONE
     relations_map: []
+
+default_jira_instance: *default_jira_instance
 
 # Список внешних зависимостей тасков между разными джирами
 # Это значение-ссылка, чтобы не копипастить

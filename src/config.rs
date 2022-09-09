@@ -20,7 +20,7 @@ pub struct JiraQuery {
 pub struct Config {
     pub default_jira_instance: JiraServer,
     #[serde(default)]
-    pub extra_jira_instances: HashMap<String, JiraServer>,
+    pub jira_instances: HashMap<String, JiraServer>,
     #[serde(default)]
     pub reports: HashMap<String, crate::report::Report>,
 }
