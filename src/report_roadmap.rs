@@ -53,6 +53,25 @@ impl Roadmap {
         )
     }
 
+    fn get_issue_plan(&self, issue: &crate::report::ReportIssue) -> String {
+        let duration = issue.custom_fields.plan();
+        let planned_end = issue
+            .custom_fields
+            .planned_end
+            .unwrap_or_else(|| chrono::Utc::now().date() + chrono::Duration::days(100000));
+        let planned_start = issue
+            .custom_fields
+            .planned_start
+            .unwrap_or_else(|| chrono::Utc::now().date() + chrono::Duration::days(100000));
+        if planned_end - chrono::Duration::days(3) < chrono::Utc::now().date() {
+            format!("{{color:red}}{}{{color}}", duration)
+        } else if planned_start - chrono::Duration::days(3) < chrono::Utc::now().date() {
+            format!("{{color:green}}{}{{color}}", duration)
+        } else {
+            duration
+        }
+    }
+
     pub async fn make(&self, data: &crate::report_data::ReportData) -> Result<()> {
         println!("\nh1. Задачи\n");
         println!("|| Описание таска || Эпик || Jira-таск || Сроки ||");
@@ -100,28 +119,7 @@ impl Roadmap {
             };
 
             let col3 = self.get_issue_link(issue);
-
-            let duration = issue.custom_fields.plan();
-
-            let duration = {
-                let planned_end = issue
-                    .custom_fields
-                    .planned_end
-                    .unwrap_or_else(|| chrono::Utc::now().date() + chrono::Duration::days(100000));
-                let planned_start = issue
-                    .custom_fields
-                    .planned_start
-                    .unwrap_or_else(|| chrono::Utc::now().date() + chrono::Duration::days(100000));
-                if planned_end - chrono::Duration::days(3) < chrono::Utc::now().date() {
-                    format!("{{color:red}}{}{{color}}", duration)
-                } else if planned_start - chrono::Duration::days(3) < chrono::Utc::now().date() {
-                    format!("{{color:green}}{}{{color}}", duration)
-                } else {
-                    duration
-                }
-            };
-
-            let col4 = duration;
+            let col4 = self.get_issue_plan(issue);
 
             println!("| {} | {} | {} | {} |", col1, col2, col3, col4)
         }
@@ -162,6 +160,57 @@ impl Roadmap {
         }
 
         println!("\nh1. Команда\n");
+        let local_assignees: HashSet<_> = issues
+            .iter()
+            .map(|issue| {
+                issue
+                    .issue
+                    .fields
+                    .assignee
+                    .as_ref()
+                    .map(|user| user.display_name.as_deref())
+                    .flatten()
+            })
+            .collect();
+        let mut local_assignees: Vec<_> = local_assignees.into_iter().collect();
+        local_assignees.sort();
+
+        for assignee in local_assignees {
+            let assignee_issues: Vec<_> = issues
+                .iter()
+                .filter(|issue| {
+                    let issue_assignee = issue
+                        .issue
+                        .fields
+                        .assignee
+                        .as_ref()
+                        .map(|user| user.display_name.as_deref())
+                        .flatten();
+                    issue_assignee == assignee
+                })
+                .collect();
+
+            println!(
+                "\nh2. {} ({} задач)\n",
+                assignee.unwrap_or("Без исполнителя"),
+                assignee_issues.len()
+            );
+            println!("|| Описание таска || Эпик || Jira-таск || Сроки ||");
+            for issue in assignee_issues {
+                let col1 = crate::confluence::wiki_escape(&issue.issue.fields.summary);
+                let col2 = match &issue.custom_fields.epic_link {
+                    None => "",
+                    Some(epic_key) => match data.epics.get(&issue.jira, epic_key) {
+                        None => "",
+                        Some(v) => v.custom_fields.epic_name.as_deref().unwrap_or_default(),
+                    },
+                };
+                let col3 = self.get_issue_link(issue);
+                let col4 = self.get_issue_plan(issue);
+
+                println!("| {} | {} | {} | {} |", col1, col2, col3, col4)
+            }
+        }
 
         Ok(())
     }
