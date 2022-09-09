@@ -3,7 +3,7 @@ use std::collections::HashMap;
 
 use serde::Serialize;
 
-#[derive(Serialize)]
+#[derive(Serialize, Clone)]
 pub struct IssueBeanFields {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub assignee: Option<atlassian_jira_rest_types::v2::User>,
@@ -44,7 +44,7 @@ impl IssueBeanFields {
             assignee: crate::serde::json_de_kv_opt(&value, "assignee")?,
             attachment: crate::serde::json_de_kv_opt(&value, "attachment")?,
             comment: crate::serde::json_de_kv_opt(&value, "comment")?,
-            components: crate::serde::json_de_kv(&value, "components")?,
+            components: crate::serde::json_de_kv_opt(&value, "components")?.unwrap_or_default(),
             created: crate::serde::json_de_kv(&value, "created")?,
             creator: crate::serde::json_de_kv(&value, "creator")?,
             description: crate::serde::json_de_kv(&value, "description")?,
@@ -69,7 +69,7 @@ impl IssueBeanFields {
 }
 
 /// Details about an issue.
-#[derive(Serialize)]
+#[derive(Serialize, Clone)]
 pub struct IssueBean {
     /// Details of changelogs associated with the issue.
     #[serde(skip_serializing_if = "Option::is_none")]

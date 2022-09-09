@@ -1,9 +1,12 @@
 mod authentication;
 mod config;
+mod confluence;
 mod jira;
 mod jira_types;
 mod printer;
 mod report;
+mod report_data;
+mod report_dependency_graph;
 mod report_roadmap;
 mod serde;
 
@@ -11,7 +14,6 @@ extern crate slog_scope;
 
 use anyhow::{bail, Result};
 use clap::{Args, IntoApp, Parser, Subcommand};
-use slog::{o, Drain};
 
 const APP_CONFIG: &str = "uprava.yaml";
 
@@ -26,7 +28,7 @@ impl CmdJiraGetIssue {
     pub async fn run(&self, config: crate::config::Config) -> Result<()> {
         let issue = config
             .default_jira_instance
-            .issue_beam(&self.issue)
+            .issue_bean(&self.issue)
             .await
             .unwrap();
         println!("{}", self.format.data_to_string(&issue).unwrap());
@@ -76,7 +78,7 @@ impl CmdJiraSearch {
     pub async fn run(&self, config: crate::config::Config) -> Result<()> {
         let list = config
             .default_jira_instance
-            .search(jira::SearchGetParams::new(&self.query))
+            .search(&jira::SearchGetParams::new(&self.query))
             .await
             .unwrap();
         println!("{}", self.format.data_to_string(&list).unwrap());
@@ -165,15 +167,7 @@ impl Application {
     }
 
     pub fn run(&self) {
-        let logger = slog_syslog::SyslogBuilder::new()
-            .facility(slog_syslog::Facility::LOG_USER)
-            .level(slog::Level::Debug)
-            .unix("/dev/log")
-            .start()
-            .expect("Logger");
-
-        let logger = slog::Logger::root(logger.fuse(), o!());
-        let _logger_guard = slog_scope::set_global_logger(logger);
+        let _logger_guard = slog_envlogger::init().unwrap();
 
         let config = crate::config::Config::read(&self.config).expect("Config");
 

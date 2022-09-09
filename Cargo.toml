@@ -19,7 +19,7 @@ serde_yaml = "0.7"
 chrono = { version = "0.4", features = ["serde"] }
 slog = "2"
 slog-scope = "4"
-slog-syslog = "0"
+slog-envlogger = "2.2"
 humantime-serde = "1.0"
 humantime = "2"
 tokio = { version = "1.20", features = ["full"] }

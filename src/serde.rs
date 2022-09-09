@@ -7,7 +7,7 @@ pub fn json_de_kv<DATA>(
 where
     for<'de> DATA: serde::Deserialize<'de>,
 {
-    println!("Getting {:?}", key);
+    slog_scope::debug!("Getting {:?}", key);
     match map.get(key) {
         None => bail!("Field {:?} not found", key),
         Some(value) => {

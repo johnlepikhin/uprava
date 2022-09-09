@@ -3,7 +3,7 @@ use std::process::Command;
 use anyhow::{bail, format_err, Result};
 use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug, Hash, PartialEq, Eq)]
 pub enum Secret {
     String(String),
     Program(String),
@@ -40,7 +40,8 @@ impl Secret {
     }
 }
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, Hash, PartialEq, Eq, Debug)]
 pub enum Access {
     Token(Secret),
+    JSessionID(Secret),
 }

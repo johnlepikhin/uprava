@@ -1,9 +1,11 @@
 use anyhow::Result;
 use atlassian_jira_rest_types::v2::Comment;
+use chrono::Datelike;
 use serde::{Deserialize, Serialize};
 
 use crate::jira_types::IssueBean;
 
+#[derive(Clone, Debug)]
 pub struct SearchGetParams {
     pub jql: String,
     pub start_at: Option<u64>,
@@ -26,10 +28,95 @@ impl SearchGetParams {
     }
 }
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, Hash, PartialEq, Eq, Debug)]
+pub struct CustomField {
+    pub name: String,
+}
+
+impl CustomField {
+    pub fn of_issue<DATA>(&self, issue: &crate::jira_types::IssueBean) -> Result<Option<DATA>>
+    where
+        for<'de> DATA: serde::Deserialize<'de>,
+    {
+        let r = match issue.fields.custom_fields.get(&self.name) {
+            None => None,
+            Some(v) => serde_json::value::from_value(v.clone())?,
+        };
+        Ok(r)
+    }
+
+    pub fn date_of_issue(
+        &self,
+        issue: &crate::jira_types::IssueBean,
+    ) -> Result<Option<chrono::Date<chrono::Utc>>> {
+        let s: Option<String> = self.of_issue(issue)?;
+        match s {
+            None => Ok(None),
+            Some(v) => {
+                let v = format!("\"{}T00:00:00.000000Z\"", v);
+                slog_scope::debug!("Parsing DateTime from string: {}", v);
+                let r: chrono::DateTime<chrono::Utc> = serde_json::from_str(&v)?;
+                Ok(Some(r.date()))
+            }
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize, Clone, Hash, PartialEq, Eq, Debug)]
+pub struct IssueCustomFieldsConfig {
+    pub reason: CustomField,
+    pub epic_link: CustomField,
+    pub epic_name: CustomField,
+    pub planned_start: CustomField,
+    pub planned_end: CustomField,
+}
+
+#[derive(Clone)]
+pub struct IssueCustomFields {
+    pub reason: Option<String>,
+    pub epic_link: Option<String>,
+    pub epic_name: Option<String>,
+    pub planned_start: Option<chrono::Date<chrono::Utc>>,
+    pub planned_end: Option<chrono::Date<chrono::Utc>>,
+}
+
+impl IssueCustomFields {
+    pub fn of_issue(jira: &JiraServer, issue: &crate::jira_types::IssueBean) -> Result<Self> {
+        Ok(Self {
+            reason: jira.custom_fields.reason.of_issue(issue)?,
+            epic_link: jira.custom_fields.epic_link.of_issue(issue)?,
+            epic_name: jira.custom_fields.epic_name.of_issue(issue)?,
+            planned_start: jira.custom_fields.planned_start.date_of_issue(issue)?,
+            planned_end: jira.custom_fields.planned_end.date_of_issue(issue)?,
+        })
+    }
+
+    fn format_date(date: &Option<chrono::Date<chrono::Utc>>) -> String {
+        match date {
+            None => "?".to_owned(),
+            Some(v) => format!("{}-{:02}-{:02}", v.year(), v.month(), v.day()),
+        }
+    }
+
+    pub fn plan(&self) -> String {
+        if self.planned_start.is_some() || self.planned_end.is_some() {
+            format!(
+                "{} - {}",
+                Self::format_date(&self.planned_start),
+                Self::format_date(&self.planned_end)
+            )
+        } else {
+            "".to_owned()
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize, Clone, Hash, PartialEq, Eq, Debug)]
 pub struct JiraServer {
     pub base_url: url::Url,
     pub access: crate::authentication::Access,
+    pub custom_fields: IssueCustomFieldsConfig,
+    pub relations_map: Vec<(String, String)>,
 }
 
 impl JiraServer {
@@ -50,6 +137,10 @@ impl JiraServer {
                 reqwest::header::AUTHORIZATION,
                 format!("Bearer {}", secret.get()?.trim()),
             ),
+            crate::authentication::Access::JSessionID(secret) => request.header(
+                reqwest::header::COOKIE,
+                format!("JSESSIONID={}", secret.get()?.trim()),
+            ),
         };
 
         let response = request.send().await?.error_for_status()?.text().await?;
@@ -57,10 +148,14 @@ impl JiraServer {
         Ok(response)
     }
 
-    pub async fn issue_beam(&self, issue: &str) -> Result<crate::jira_types::IssueBean> {
+    pub async fn issue_bean(&self, issue: &str) -> Result<crate::jira_types::IssueBean> {
+        slog_scope::info!("Getting issue from {:?}: {:?}", self.base_url, issue);
+
         let response = self
             .http_get(&format!("/rest/api/2/issue/{}", issue), &[])
             .await?;
+
+        slog_scope::trace!("Got from {:?}: {:?}", self.base_url, response);
 
         let json = serde_json::de::from_str::<atlassian_jira_rest_types::v2::IssueBean>(&response)?;
         crate::jira_types::IssueBean::of_json(json)
@@ -68,9 +163,9 @@ impl JiraServer {
 
     pub async fn search(
         &self,
-        params: SearchGetParams,
+        params: &SearchGetParams,
     ) -> Result<atlassian_jira_rest_types::v2::SearchResults> {
-        let mut query = vec![("jql", params.jql)];
+        let mut query = vec![("jql", params.jql.clone())];
         if let Some(v) = params.start_at {
             query.push(("startAt", format!("{}", v)))
         }
@@ -80,14 +175,17 @@ impl JiraServer {
         if let Some(v) = params.validate_query {
             query.push(("validateQuery", format!("{}", v)))
         }
-        if let Some(v) = params.fields {
+        if let Some(v) = &params.fields {
             query.push(("fields", v.join(",")))
         }
-        if let Some(v) = params.expand {
+        if let Some(v) = &params.expand {
             query.push(("expand", v.join(",")))
         }
 
         let query: Vec<(&str, &str)> = query.iter().map(|(k, v)| (*k, v.as_str())).collect();
+
+        slog_scope::info!("Searching on {:?}: {:?}", self.base_url, params);
+
         let response = self
             .http_get("/rest/api/2/search", query.as_slice())
             .await?;
@@ -95,6 +193,38 @@ impl JiraServer {
         let json =
             serde_json::de::from_str::<atlassian_jira_rest_types::v2::SearchResults>(&response)?;
         Ok(json)
+    }
+
+    pub async fn search_all(
+        &self,
+        params: &SearchGetParams,
+    ) -> Result<Vec<atlassian_jira_rest_types::v2::IssueBean>> {
+        let mut result_list = Vec::new();
+        loop {
+            let r = self
+                .search(&SearchGetParams {
+                    start_at: Some(result_list.len() as u64),
+                    max_results: Some(1000),
+                    ..params.clone()
+                })
+                .await?;
+            match r.issues {
+                None => break,
+                Some(issues) => {
+                    if issues.is_empty() {
+                        break;
+                    }
+                    let issues_count = issues.len();
+                    result_list.extend(issues);
+                    if let Some(per_page) = r.max_results {
+                        if issues_count < per_page as usize {
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+        Ok(result_list)
     }
 }
 

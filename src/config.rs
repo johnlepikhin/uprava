@@ -14,7 +14,6 @@ pub struct JiraQueryCustomField {
 pub struct JiraQuery {
     pub jira: JiraServer,
     pub query: String,
-    pub custom_fields: HashMap<String, JiraQueryCustomField>,
 }
 
 #[derive(Serialize, Deserialize, Clone)]
