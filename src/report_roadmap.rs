@@ -1,4 +1,5 @@
 use std::collections::HashSet;
+use std::fmt::Write;
 
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
@@ -34,13 +35,14 @@ impl Roadmap {
         col1
     }
 
-    fn get_issue_link(&self, issue: &crate::report::ReportIssue) -> String {
+    fn get_issue_link(&self, issue: &crate::report::ReportIssue, newlines: bool) -> String {
         let mut issue_url = issue.jira.base_url.clone();
         issue_url.set_path(&format!("browse/{}", issue.issue.key));
         format!(
-            "[{}|{}] \\\\ {}",
+            "[{}|{}] {} {}",
             issue.issue.key,
             issue_url,
+            if newlines { "\\\\" } else { "" },
             crate::confluence::wiki_escape(
                 &issue
                     .issue
@@ -70,6 +72,142 @@ impl Roadmap {
         } else {
             duration
         }
+    }
+
+    fn make_team_roadmaps(
+        &self,
+        data: &crate::report_data::ReportData,
+        issues: &[&crate::report::ReportIssue],
+    ) -> Result<String> {
+        let mut result = String::new();
+        writeln!(&mut result, "\nh1. Команда\n")?;
+        let local_assignees: HashSet<_> = issues
+            .iter()
+            .map(|issue| {
+                issue
+                    .issue
+                    .fields
+                    .assignee
+                    .as_ref()
+                    .map(|user| user.display_name.as_deref())
+                    .flatten()
+            })
+            .collect();
+        let mut local_assignees: Vec<_> = local_assignees.into_iter().collect();
+        local_assignees.sort();
+
+        for assignee in local_assignees {
+            let assignee_issues: Vec<_> = issues
+                .iter()
+                .filter(|issue| {
+                    let issue_assignee = issue
+                        .issue
+                        .fields
+                        .assignee
+                        .as_ref()
+                        .map(|user| user.display_name.as_deref())
+                        .flatten();
+                    issue_assignee == assignee
+                })
+                .collect();
+
+            writeln!(
+                &mut result,
+                "\nh2. {} ({} задач)\n",
+                assignee.unwrap_or("Без исполнителя"),
+                assignee_issues.len()
+            )?;
+            writeln!(
+                &mut result,
+                "|| Описание таска || Эпик || Jira-таск || Сроки ||"
+            )?;
+            for issue in assignee_issues {
+                let col1 = crate::confluence::wiki_escape(&issue.issue.fields.summary);
+                let col2 = match &issue.custom_fields.epic_link {
+                    None => "",
+                    Some(epic_key) => match data.epics.get(&issue.jira, epic_key) {
+                        None => "",
+                        Some(v) => v.custom_fields.epic_name.as_deref().unwrap_or_default(),
+                    },
+                };
+                let col3 = self.get_issue_link(issue, false);
+                let col4 = self.get_issue_plan(issue);
+
+                writeln!(&mut result, "| {} | {} | {} | {} |", col1, col2, col3, col4)?
+            }
+        }
+        Ok(result)
+    }
+
+    fn make_epics(
+        &self,
+        data: &crate::report_data::ReportData,
+        issues: &[&crate::report::ReportIssue],
+    ) -> Result<String> {
+        let mut result = String::new();
+        writeln!(&mut result, "\nh1. Эпики\n")?;
+        writeln!(&mut result, "|| Эпик || Описание эпика ||")?;
+
+        let local_epics: HashSet<_> = issues
+            .iter()
+            .filter_map(|issue| {
+                issue
+                    .custom_fields
+                    .epic_link
+                    .as_ref()
+                    .map(|key| IssueID::new(&issue.jira, key))
+            })
+            .collect();
+
+        for epic in data.epics.all().iter().filter_map(|(k, v)| {
+            if local_epics.contains(k) {
+                Some(v)
+            } else {
+                None
+            }
+        }) {
+            if let Some(epic_name) = &epic.custom_fields.epic_name {
+                let mut issue_url = epic.jira.base_url.clone();
+                issue_url.set_path(&format!("browse/{}", epic.issue.key));
+
+                writeln!(
+                    &mut result,
+                    "| [{}|{}] | {} |",
+                    crate::confluence::wiki_escape(epic_name),
+                    issue_url,
+                    crate::confluence::wiki_escape(
+                        epic.custom_fields.reason.as_deref().unwrap_or("")
+                    ),
+                )?
+            }
+        }
+        Ok(result)
+    }
+
+    fn make_general_list(
+        &self,
+        data: &crate::report_data::ReportData,
+        issues: &[&crate::report::ReportIssue],
+    ) -> Result<String> {
+        let mut result = String::new();
+
+        for issue in issues {
+            let col1 = self.get_task(issue);
+            let col2 = match &issue.custom_fields.epic_link {
+                None => "",
+                Some(epic_key) => match data.epics.get(&issue.jira, epic_key) {
+                    None => "",
+                    Some(v) => v.custom_fields.epic_name.as_deref().unwrap_or_default(),
+                },
+            };
+
+            let col3 = self.get_issue_link(issue, true);
+            let col4 = self.get_issue_plan(issue);
+
+            writeln!(&mut result, "| {} | {} | {} | {} |", col1, col2, col3, col4)?
+        }
+
+        Ok(result)
     }
 
     pub async fn make(&self, data: &crate::report_data::ReportData) -> Result<()> {
@@ -108,109 +246,9 @@ impl Roadmap {
                 })
         });
 
-        for issue in &issues {
-            let col1 = self.get_task(issue);
-            let col2 = match &issue.custom_fields.epic_link {
-                None => "",
-                Some(epic_key) => match data.epics.get(&issue.jira, epic_key) {
-                    None => "",
-                    Some(v) => v.custom_fields.epic_name.as_deref().unwrap_or_default(),
-                },
-            };
-
-            let col3 = self.get_issue_link(issue);
-            let col4 = self.get_issue_plan(issue);
-
-            println!("| {} | {} | {} | {} |", col1, col2, col3, col4)
-        }
-
-        let local_epics: HashSet<_> = issues
-            .iter()
-            .filter_map(|issue| {
-                issue
-                    .custom_fields
-                    .epic_link
-                    .as_ref()
-                    .map(|key| IssueID::new(&issue.jira, key))
-            })
-            .collect();
-
-        println!("\nh1. Эпики\n");
-        println!("|| Эпик || Описание эпика ||");
-        for epic in data.epics.all().iter().filter_map(|(k, v)| {
-            if local_epics.contains(k) {
-                Some(v)
-            } else {
-                None
-            }
-        }) {
-            if let Some(epic_name) = &epic.custom_fields.epic_name {
-                let mut issue_url = epic.jira.base_url.clone();
-                issue_url.set_path(&format!("browse/{}", epic.issue.key));
-
-                println!(
-                    "| [{}|{}] | {} |",
-                    crate::confluence::wiki_escape(epic_name),
-                    issue_url,
-                    crate::confluence::wiki_escape(
-                        epic.custom_fields.reason.as_deref().unwrap_or("")
-                    ),
-                )
-            }
-        }
-
-        println!("\nh1. Команда\n");
-        let local_assignees: HashSet<_> = issues
-            .iter()
-            .map(|issue| {
-                issue
-                    .issue
-                    .fields
-                    .assignee
-                    .as_ref()
-                    .map(|user| user.display_name.as_deref())
-                    .flatten()
-            })
-            .collect();
-        let mut local_assignees: Vec<_> = local_assignees.into_iter().collect();
-        local_assignees.sort();
-
-        for assignee in local_assignees {
-            let assignee_issues: Vec<_> = issues
-                .iter()
-                .filter(|issue| {
-                    let issue_assignee = issue
-                        .issue
-                        .fields
-                        .assignee
-                        .as_ref()
-                        .map(|user| user.display_name.as_deref())
-                        .flatten();
-                    issue_assignee == assignee
-                })
-                .collect();
-
-            println!(
-                "\nh2. {} ({} задач)\n",
-                assignee.unwrap_or("Без исполнителя"),
-                assignee_issues.len()
-            );
-            println!("|| Описание таска || Эпик || Jira-таск || Сроки ||");
-            for issue in assignee_issues {
-                let col1 = crate::confluence::wiki_escape(&issue.issue.fields.summary);
-                let col2 = match &issue.custom_fields.epic_link {
-                    None => "",
-                    Some(epic_key) => match data.epics.get(&issue.jira, epic_key) {
-                        None => "",
-                        Some(v) => v.custom_fields.epic_name.as_deref().unwrap_or_default(),
-                    },
-                };
-                let col3 = self.get_issue_link(issue);
-                let col4 = self.get_issue_plan(issue);
-
-                println!("| {} | {} | {} | {} |", col1, col2, col3, col4)
-            }
-        }
+        print!("{}", self.make_general_list(data, issues.as_slice())?);
+        print!("{}", self.make_epics(data, issues.as_slice())?);
+        print!("{}", self.make_team_roadmaps(data, issues.as_slice())?);
 
         Ok(())
     }
