@@ -112,8 +112,12 @@ impl Report {
 
     pub async fn make(&self) -> Result<()> {
         let issues_list = self.get_issues().await?;
-        let data =
-            crate::report_data::ReportData::of_slice(&self.foreign_relations, &issues_list).await?;
+        let data = crate::report_data::ReportData::of_slice(
+            &self.foreign_relations,
+            &issues_list,
+            self.dependencies_deepness,
+        )
+        .await?;
         match &self.result {
             ReportResult::Roadmap(v) => v.make(&data).await?,
             ReportResult::DependencyGraphPrint(v) => v.make(&data).await?,

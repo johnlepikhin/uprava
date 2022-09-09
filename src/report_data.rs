@@ -344,9 +344,11 @@ impl ReportData {
     pub async fn of_slice(
         foreign_relations: &[crate::report::ForeignRelation],
         slice: &[crate::report::ReportIssue],
+        dependencies_deepness: usize,
     ) -> Result<Self> {
         let mut issues = IssuesList::of_slice(slice);
-        let relations = Self::get_relations(foreign_relations, &mut issues, 1).await?;
+        let relations =
+            Self::get_relations(foreign_relations, &mut issues, dependencies_deepness).await?;
         let epics = Self::get_epics(&mut issues).await?;
         Ok(Self {
             issues,
