@@ -19,6 +19,12 @@ impl DependencyGraph {
         s.replace("\\", "\\\\").replace("\"", "\\\"")
     }
 
+    fn html_string_escape(s: &str) -> String {
+        s.replace("&", "&amp;")
+            .replace("<", "&lt;")
+            .replace(">", "&gt;")
+    }
+
     pub async fn make(&self, data: &crate::report_data::ReportData) -> Result<()> {
         use std::fmt::Write;
 
@@ -89,7 +95,7 @@ impl DependencyGraph {
                     None => "".to_owned(),
                     Some(v) => match &v.display_name {
                         None => "".to_owned(),
-                        Some(v) => format!("<br/>Исполнитель {}", v),
+                        Some(v) => format!("<br/>Исполнитель {}", Self::html_string_escape(&v)),
                     },
                 };
 
@@ -98,7 +104,11 @@ impl DependencyGraph {
                     .fields
                     .status
                     .as_ref()
-                    .map(|v| v.name.as_ref().map(|v| format!("<br/>{}", v)))
+                    .map(|v| {
+                        v.name
+                            .as_ref()
+                            .map(|v| format!("<br/>{}", Self::html_string_escape(&v)))
+                    })
                     .flatten()
                     .unwrap_or_default();
 
@@ -122,9 +132,9 @@ impl DependencyGraph {
                         output,
                         "    {} [fillcolor=\"#8CB3FF\";label=<{}{}{}<i><font color=\"{}\">{}</font></i>>;href=\"{}\"]",
                         Self::issue_id(issue),
-                        &issue.issue.fields.summary,
+                        &Self::html_string_escape(&issue.issue.fields.summary),
                         &assignee,
-                        duration,
+                        &duration,
                         status_color,
                         &status,
                         Self::double_string_escape(&issue.url().to_string()),
@@ -134,9 +144,9 @@ impl DependencyGraph {
                         "    {} [fillcolor=\"#80FFD2\";href=\"{}\";label=<Внешняя задача<br/>{}{}{}<i><font color=\"{}\">{}</font></i>>]",
                         Self::issue_id(issue),
                         Self::double_string_escape(&issue.url().to_string()),
-                        &issue.issue.fields.summary,
+                        &Self::html_string_escape(&issue.issue.fields.summary),
                         &assignee,
-                        duration,
+                        &duration,
                         status_color,
                         &status,
                     )?,
