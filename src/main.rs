@@ -43,9 +43,21 @@ struct CmdJiraGetArbitrary {
 
 impl CmdJiraGetArbitrary {
     pub async fn run(&self, config: crate::config::Config) -> Result<()> {
+        let url = url::Url::parse(&format!("http://a/{}", self.query))?;
+
+        let params: Vec<_> = url
+            .query_pairs()
+            .map(|(k, v)| (k.into_owned(), v.into_owned()))
+            .collect();
+
+        let params: Vec<_> = params
+            .iter()
+            .map(|(k, v)| (k.as_str(), v.as_str()))
+            .collect();
+
         let result = config
             .default_jira_instance
-            .http_get(&self.query, &[])
+            .http_get(url.path().to_string().as_str(), &params)
             .await?;
         println!("{}", result);
         Ok(())
