@@ -28,7 +28,7 @@ impl ReportIssue {
         issue: &crate::jira_types::IssueBean,
         entity_type: ReportIssueType,
     ) -> Result<Self> {
-        let custom_fields = crate::jira::IssueCustomFields::of_issue(&jira, &issue)?;
+        let custom_fields = crate::jira::IssueCustomFields::of_issue(jira, issue)?;
         Ok(Self {
             jira: jira.clone(),
             issue: issue.clone(),
@@ -81,21 +81,17 @@ pub struct Report {
 impl Report {
     pub async fn get_issues(&self) -> Result<Vec<ReportIssue>> {
         let mut issues_list = Vec::new();
-        let issues_futures: Vec<_> = self
-            .queries
-            .iter()
-            .map(|query| {
-                let query_clone = query.clone();
-                let handler = tokio::task::spawn(async move {
-                    query_clone
-                        .jira
-                        .search_all(&crate::jira::SearchGetParams::new(&query_clone.query))
-                        .await
-                });
-                (handler, query)
-            })
-            .collect();
-        for pair in issues_futures.into_iter() {
+        let issues_futures = self.queries.iter().map(|query| {
+            let query_clone = query.clone();
+            let handler = tokio::task::spawn(async move {
+                query_clone
+                    .jira
+                    .search_all(&crate::jira::SearchGetParams::new(&query_clone.query))
+                    .await
+            });
+            (handler, query)
+        });
+        for pair in issues_futures {
             let (issues_future, query) = pair;
             let issues: Vec<_> = issues_future.await??;
             for issue in issues {

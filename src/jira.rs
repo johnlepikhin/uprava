@@ -247,14 +247,12 @@ impl CommentPrinter {
             comment
                 .author
                 .display_name
-                .as_ref()
-                .map(|v| v.as_str())
+                .as_deref()
                 .unwrap_or("No username"),
             comment
                 .author
                 .email_address
-                .as_ref()
-                .map(|v| v.as_str())
+                .as_deref()
                 .unwrap_or("no-email"),
         )?;
         writeln!(&mut output, "Date: {}", comment.created)?;
@@ -264,20 +262,15 @@ impl CommentPrinter {
                 "UpdatedBy: {:?} <{}>",
                 update_author
                     .display_name
-                    .as_ref()
-                    .map(|v| v.as_str())
+                    .as_deref()
                     .unwrap_or("No username"),
-                update_author
-                    .email_address
-                    .as_ref()
-                    .map(|v| v.as_str())
-                    .unwrap_or("no-email"),
+                update_author.email_address.as_deref().unwrap_or("no-email"),
             )?;
         }
         if let Some(updated) = &comment.updated {
             writeln!(&mut output, "UpdatedAt: {}", updated)?
         }
-        writeln!(&mut output, "")?;
+        writeln!(&mut output)?;
         writeln!(&mut output, "{}", comment.body)?;
         Ok(output)
     }
@@ -308,35 +301,25 @@ impl IssuePrinter {
                 .fields
                 .creator
                 .display_name
-                .as_ref()
-                .map(|v| v.as_str())
+                .as_deref()
                 .unwrap_or("No username"),
             issue
                 .fields
                 .creator
                 .email_address
-                .as_ref()
-                .map(|v| v.as_str())
+                .as_deref()
                 .unwrap_or("no-email"),
         )?;
         if let Some(assignee) = &issue.fields.assignee {
             writeln!(
                 &mut output,
                 "To: {:?} <{}>",
-                assignee
-                    .display_name
-                    .as_ref()
-                    .map(|v| v.as_str())
-                    .unwrap_or("No username"),
-                assignee
-                    .email_address
-                    .as_ref()
-                    .map(|v| v.as_str())
-                    .unwrap_or("no-email"),
+                assignee.display_name.as_deref().unwrap_or("No username"),
+                assignee.email_address.as_deref().unwrap_or("no-email"),
             )?;
         }
         writeln!(&mut output, "Subject: {}", issue.fields.summary)?;
-        writeln!(&mut output, "")?;
+        writeln!(&mut output)?;
         writeln!(
             &mut output,
             "{}",

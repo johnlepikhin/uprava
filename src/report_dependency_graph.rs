@@ -9,20 +9,20 @@ pub struct DependencyGraph;
 impl DependencyGraph {
     fn issue_id(issue: &crate::report::ReportIssue) -> String {
         format!("{}/{}", issue.jira.base_url, issue.issue.key)
-            .replace(":", "_")
-            .replace("/", "_")
-            .replace("-", "_")
-            .replace(".", "_")
+            .replace(':', "_")
+            .replace('/', "_")
+            .replace('-', "_")
+            .replace('.', "_")
     }
 
     fn double_string_escape(s: &str) -> String {
-        s.replace("\\", "\\\\").replace("\"", "\\\"")
+        s.replace('\\', "\\\\").replace('"', "\\\"")
     }
 
     fn html_string_escape(s: &str) -> String {
-        s.replace("&", "&amp;")
-            .replace("<", "&lt;")
-            .replace(">", "&gt;")
+        s.replace('&', "&amp;")
+            .replace('<', "&lt;")
+            .replace('>', "&gt;")
     }
 
     pub async fn make(&self, data: &crate::report_data::ReportData) -> Result<()> {
@@ -51,7 +51,7 @@ impl DependencyGraph {
                 None => None,
                 Some(epic_link) => {
                     slog_scope::debug!("Searching for epic {}", &epic_link);
-                    let epic_id = crate::report_data::IssueID::new(jira, &epic_link);
+                    let epic_id = crate::report_data::IssueID::new(jira, epic_link);
                     data.epics.all().get(&epic_id)
                 }
             };
@@ -95,7 +95,7 @@ impl DependencyGraph {
                     None => "".to_owned(),
                     Some(v) => match &v.display_name {
                         None => "".to_owned(),
-                        Some(v) => format!("<br/>Исполнитель {}", Self::html_string_escape(&v)),
+                        Some(v) => format!("<br/>Исполнитель {}", Self::html_string_escape(v)),
                     },
                 };
 
@@ -104,12 +104,11 @@ impl DependencyGraph {
                     .fields
                     .status
                     .as_ref()
-                    .map(|v| {
+                    .and_then(|v| {
                         v.name
                             .as_ref()
-                            .map(|v| format!("<br/>{}", Self::html_string_escape(&v)))
+                            .map(|v| format!("<br/>{}", Self::html_string_escape(v)))
                     })
-                    .flatten()
                     .unwrap_or_default();
 
                 let status_color = match issue
@@ -117,8 +116,7 @@ impl DependencyGraph {
                     .fields
                     .status
                     .as_ref()
-                    .map(|v| v.status_category.as_ref().map(|v| v.key.as_deref()))
-                    .flatten()
+                    .and_then(|v| v.status_category.as_ref().map(|v| v.key.as_deref()))
                     .flatten()
                 {
                     Some("new") => "#42526e",
@@ -137,13 +135,13 @@ impl DependencyGraph {
                         &duration,
                         status_color,
                         &status,
-                        Self::double_string_escape(&issue.url().to_string()),
+                        Self::double_string_escape(issue.url().as_ref()),
                     )?,
                     crate::report::ReportIssueType::ExternalDependency => writeln!(
                         output,
                         "    {} [fillcolor=\"#80FFD2\";href=\"{}\";label=<Внешняя задача<br/>{}{}{}<i><font color=\"{}\">{}</font></i>>]",
                         Self::issue_id(issue),
-                        Self::double_string_escape(&issue.url().to_string()),
+                        Self::double_string_escape(issue.url().as_ref()),
                         &Self::html_string_escape(&issue.issue.fields.summary),
                         &assignee,
                         &duration,

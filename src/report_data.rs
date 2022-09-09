@@ -31,10 +31,10 @@ impl IssueID {
 
     pub fn as_string(&self) -> String {
         format!("{}/{}", self.jira.base_url, self.issue)
-            .replace(":", "_")
-            .replace("/", "_")
-            .replace("-", "_")
-            .replace(".", "_")
+            .replace(':', "_")
+            .replace('/', "_")
+            .replace('-', "_")
+            .replace('.', "_")
     }
 }
 
@@ -53,13 +53,13 @@ impl IssuesList {
     pub fn of_slice(slice: &[crate::report::ReportIssue]) -> Self {
         let issues = slice
             .iter()
-            .map(|issue| (IssueID::of_issue(&issue), issue.clone()))
+            .map(|issue| (IssueID::of_issue(issue), issue.clone()))
             .collect();
         Self { issues }
     }
 
     pub fn insert(&mut self, issue: &crate::report::ReportIssue) {
-        let _ = self.issues.insert(IssueID::of_issue(&issue), issue.clone());
+        let _ = self.issues.insert(IssueID::of_issue(issue), issue.clone());
     }
 
     pub fn get(
@@ -82,8 +82,8 @@ impl IssuesList {
             Ok(self.issues.get(&id).unwrap())
         } else {
             let issue = crate::report::ReportIssue::of_issuebean(
-                &jira,
-                &jira.issue_bean(&key).await?,
+                jira,
+                &jira.issue_bean(key).await?,
                 entity_type,
             )?;
             let _ = self.issues.insert(IssueID::of_issue(&issue), issue);
@@ -226,11 +226,11 @@ impl ReportData {
                     let (issue1, issue2) = if reversed {
                         (
                             IssueID::new(&link_jira, &link_key),
-                            IssueID::of_issue(&issue),
+                            IssueID::of_issue(issue),
                         )
                     } else {
                         (
-                            IssueID::of_issue(&issue),
+                            IssueID::of_issue(issue),
                             IssueID::new(&link_jira, &link_key),
                         )
                     };
@@ -324,15 +324,15 @@ impl ReportData {
                 None => continue,
                 Some(v) => v,
             };
-            if let Some(epic) = epics.get(&issue.jira, &epic_key) {
+            if let Some(epic) = epics.get(&issue.jira, epic_key) {
                 issues.insert(epic);
                 continue;
             }
-            match issues.get(&issue.jira, &epic_key) {
+            match issues.get(&issue.jira, epic_key) {
                 Some(v) => epics.insert(v),
                 None => {
                     let epic = epics
-                        .get_fetch(&issue.jira, &epic_key, crate::report::ReportIssueType::Epic)
+                        .get_fetch(&issue.jira, epic_key, crate::report::ReportIssueType::Epic)
                         .await?;
                     issues.insert(epic)
                 }

@@ -14,7 +14,7 @@ impl Roadmap {
             col1 = format!(
                 "{}\\\\ \\\\{}",
                 col1,
-                crate::confluence::wiki_escape(&reason)
+                crate::confluence::wiki_escape(reason)
             )
         }
         if let Some(assignee) = &issue.issue.fields.assignee {
@@ -43,8 +43,7 @@ impl Roadmap {
                     .fields
                     .status
                     .as_ref()
-                    .map(|v| v.name.clone())
-                    .flatten()
+                    .and_then(|v| v.name.clone())
                     .unwrap_or_default()
             )
         )
@@ -90,7 +89,7 @@ impl Roadmap {
             let col1 = self.get_task(issue);
             let col2 = match &issue.custom_fields.epic_link {
                 None => "",
-                Some(epic_key) => match data.epics.get(&issue.jira, &epic_key) {
+                Some(epic_key) => match data.epics.get(&issue.jira, epic_key) {
                     None => "",
                     Some(v) => v.custom_fields.epic_name.as_deref().unwrap_or_default(),
                 },
@@ -132,10 +131,10 @@ impl Roadmap {
 
                 println!(
                     "| [{}|{}] | {} |",
-                    crate::confluence::wiki_escape(&epic_name),
+                    crate::confluence::wiki_escape(epic_name),
                     issue_url,
                     crate::confluence::wiki_escape(
-                        &epic.custom_fields.reason.as_deref().unwrap_or("")
+                        epic.custom_fields.reason.as_deref().unwrap_or("")
                     ),
                 )
             }
