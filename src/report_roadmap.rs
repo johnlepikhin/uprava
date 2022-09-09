@@ -89,8 +89,7 @@ impl Roadmap {
                     .fields
                     .assignee
                     .as_ref()
-                    .map(|user| user.display_name.as_deref())
-                    .flatten()
+                    .and_then(|user| user.display_name.as_deref())
             })
             .collect();
         let mut local_assignees: Vec<_> = local_assignees.into_iter().collect();
@@ -105,8 +104,7 @@ impl Roadmap {
                         .fields
                         .assignee
                         .as_ref()
-                        .map(|user| user.display_name.as_deref())
-                        .flatten();
+                        .and_then(|user| user.display_name.as_deref());
                     issue_assignee == assignee
                 })
                 .collect();
