@@ -3,8 +3,7 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Clone)]
 pub enum ReportResult {
-    Roadmap(crate::report_roadmap::Roadmap),
-    DependencyGraphPrint(crate::report_dependency_graph::DependencyGraph),
+    ConfluenceRoadmap(crate::report_confluence_roadmap::ConfluenceRoadmap),
 }
 
 #[derive(Clone, PartialEq, Eq)]
@@ -71,7 +70,7 @@ fn default_dependencies_deepness() -> usize {
 #[derive(Serialize, Deserialize, Clone)]
 pub struct Report {
     pub queries: Vec<crate::config::JiraQuery>,
-    pub result: ReportResult,
+    pub results: Vec<ReportResult>,
     #[serde(default)]
     pub foreign_relations: Vec<ForeignRelation>,
     #[serde(default = "default_dependencies_deepness")]
@@ -86,7 +85,9 @@ impl Report {
             let handler = tokio::task::spawn(async move {
                 query_clone
                     .jira
-                    .search_all(&crate::jira::SearchGetParams::new(&query_clone.query))
+                    .search_all(&crate::jira::SearchGetParams::new(
+                        query_clone.query.replace('\n', " ").trim(),
+                    ))
                     .await
             });
             (handler, query)
@@ -114,9 +115,10 @@ impl Report {
             self.dependencies_deepness,
         )
         .await?;
-        match &self.result {
-            ReportResult::Roadmap(v) => v.make(&data).await?,
-            ReportResult::DependencyGraphPrint(v) => v.make(&data).await?,
+        for result in &self.results {
+            match result {
+                ReportResult::ConfluenceRoadmap(v) => v.make(&data).await?,
+            }
         }
         Ok(())
     }

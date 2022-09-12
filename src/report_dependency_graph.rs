@@ -25,7 +25,7 @@ impl DependencyGraph {
             .replace('>', "&gt;")
     }
 
-    pub async fn make(&self, data: &crate::report_data::ReportData) -> Result<()> {
+    pub fn generate_dot(&self, data: &crate::report_data::ReportData) -> Result<String> {
         use std::fmt::Write;
 
         let mut output = String::new();
@@ -173,9 +173,35 @@ impl DependencyGraph {
         }
         writeln!(&mut output, "}}")?;
 
-        println!("{}", output);
+        Ok(output)
+    }
 
-        Ok(())
+    pub fn make(&self, data: &crate::report_data::ReportData) -> Result<tempfile::NamedTempFile> {
+        use std::io::Write;
+
+        let dotfile_content = self.generate_dot(data)?;
+
+        let mut dotfile = tempfile::NamedTempFile::new()?;
+        dotfile.write_all(dotfile_content.as_bytes())?;
+
+        let svg_file = tempfile::NamedTempFile::new()?;
+
+        std::process::Command::new("dot")
+            .args(&[
+                "-Tsvg",
+                "-o",
+                svg_file.path().to_str().unwrap(),
+                dotfile.path().to_str().unwrap(),
+            ])
+            .output()
+            .map_err(|err| {
+                anyhow::format_err!(
+                    "Failed to execute 'dot' command of Graphviz project: {}",
+                    err
+                )
+            })?;
+
+        Ok(svg_file)
     }
 }
 

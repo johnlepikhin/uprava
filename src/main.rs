@@ -1,16 +1,21 @@
 mod authentication;
 mod config;
 mod confluence;
+mod confluence_content_get;
+mod confluence_content_update;
+mod confluence_types;
 mod jira;
 mod jira_types;
 mod printer;
 mod report;
+mod report_confluence_roadmap;
 mod report_data;
 mod report_dependency_graph;
-mod report_roadmap;
 mod serde;
 
 extern crate slog_scope;
+
+use std::io::Read;
 
 use anyhow::{bail, Result};
 use clap::{Args, IntoApp, Parser, Subcommand};
@@ -116,8 +121,8 @@ impl CmdJira {
 
 #[derive(Args, Debug)]
 struct CmdConfluenceGetContent {
-    // #[clap(short)]
-    // format: crate::confluence::ContentPrinter,
+    #[clap(short)]
+    format: crate::confluence_content_get::ContentPrinter,
     space: String,
     title: String,
 }
@@ -129,8 +134,14 @@ impl CmdConfluenceGetContent {
             .get_content(&self.space, &self.title)
             .await
             .unwrap();
-        println!("{}", content);
-        // println!("{}", self.format.data_to_string(&content).unwrap());
+
+        let result = match content.results.first() {
+            None => bail!("No results found"),
+            Some(v) => v,
+        };
+
+        println!("{}", self.format.data_to_string(result).unwrap());
+
         Ok(())
     }
 }
@@ -178,16 +189,102 @@ impl CmdConfluenceGet {
     }
 }
 
+#[derive(Debug, Args)]
+struct CmdConfluenceUpdateWiki {
+    space: String,
+    title: String,
+}
+
+impl CmdConfluenceUpdateWiki {
+    pub async fn run(&self, config: crate::config::Config) -> Result<()> {
+        let get_result = config
+            .default_confluence_instance
+            .get_content(&self.space, &self.title)
+            .await
+            .unwrap();
+
+        let current_content = match get_result.results.first() {
+            None => bail!("No results found"),
+            Some(v) => v,
+        };
+
+        let id: u64 = current_content.id.parse()?;
+
+        let mut stdin = std::io::stdin().lock();
+        let mut new_body = String::new();
+        stdin.read_to_string(&mut new_body)?;
+
+        let _result = config
+            .default_confluence_instance
+            .update_content(
+                id,
+                confluence_content_update::UpdateContentBody {
+                    version: confluence_content_update::UpdateContentBodyVersion {
+                        number: current_content.version.number + 1,
+                    },
+                    title: current_content.title.clone(),
+                    content_type: confluence_types::ContentType::Page,
+                    body: confluence_types::ContentBody {
+                        storage: confluence_types::ContentBodyStorage {
+                            value: new_body,
+                            representation: confluence_types::ContentRepresentation::Wiki,
+                        },
+                    },
+                },
+            )
+            .await?;
+
+        Ok(())
+    }
+}
+
+impl CmdConfluenceUploadFile {
+    pub async fn run(&self, config: crate::config::Config) -> Result<()> {
+        let get_result = config
+            .default_confluence_instance
+            .get_content(&self.space, &self.title)
+            .await
+            .unwrap();
+
+        let current_content = match get_result.results.first() {
+            None => bail!("No results found"),
+            Some(v) => v,
+        };
+
+        let id: u64 = current_content.id.parse()?;
+
+        let _result = config
+            .default_confluence_instance
+            .upload_attachment(id, &self.path, &self.filename)
+            .await
+            .unwrap();
+
+        Ok(())
+    }
+}
+
+#[derive(Debug, Args)]
+struct CmdConfluenceUploadFile {
+    space: String,
+    title: String,
+    path: std::path::PathBuf,
+    filename: String,
+}
+
 #[derive(Subcommand, Debug)]
 enum CmdConfluence {
     #[clap(subcommand)]
     Get(CmdConfluenceGet),
+    UpdateWiki(CmdConfluenceUpdateWiki),
+    UploadFile(CmdConfluenceUploadFile),
 }
 
 impl CmdConfluence {
     pub async fn run(&self, config: crate::config::Config) -> Result<()> {
         match self {
             CmdConfluence::Get(v) => v.run(config).await,
+            CmdConfluence::UpdateWiki(v) => v.run(config).await,
+            CmdConfluence::UploadFile(v) => v.run(config).await,
         }
     }
 }

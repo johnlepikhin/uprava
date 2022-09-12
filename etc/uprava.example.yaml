@@ -117,23 +117,16 @@ reports:
         query: '(project = QAMAILCORE or assignee in ("e.lepikhin@mail.msk", "a.martirosyan@mail.msk", "art.antonov@mail.msk", "m.papikyan@mail.msk" )) and status not in (Closed, Done, Cancelled, Закрыт, Rejected) and type != Epic order by updatedDate desc'
       - jira: *hr_jira
         query: 'reporter = currentUser() and status not in (Closed, Done, Cancelled, Review) ORDER BY updatedDate DESC'
-    result:
-      # Тип отчета: в STDOUT вернуть wiki-страничку для Конфлюенса
-      Roadmap: ~
+    results:
+      # Тип отчета: сохранить в ранее созданную страницу роадмап заданной выборки
+      - ConfluenceRoadmap:
+          # Инстанс конфлюенса
+          confluence: *default_confluence_instance
+          # Имя спейса
+          space: TESTCOREMAIL
+          # Имя страницы
+          title: Roadmap
     # Конфигурация внешних связей задач между джирами
     foreign_relations: *foreign_relations
     # Глубина рекурсии при выдергивании связанных тасков
     dependencies_deepness: 1
-
-  # Имя отчета
-  dependency_graph:
-    queries:
-      - jira: *default_jira_instance
-        query: '(project = QAMAILCORE or assignee in ("e.lepikhin@mail.msk", "a.martirosyan@mail.msk", "art.antonov@mail.msk", "m.papikyan@mail.msk" )) and status not in (Closed, Done, Cancelled, Закрыт, Rejected) and type != Epic order by updatedDate desc'
-      - jira: *hr_jira
-        query: 'reporter = currentUser() and status not in (Closed, Done, Cancelled, Review) ORDER BY updatedDate DESC'
-    result:
-      # Тип отчета: в STDOUT сгенерить дерево зависимостей выбранных тасков в формате graphviz
-      DependencyGraphPrint: ~
-    dependencies_deepness: 3
-    foreign_relations: *foreign_relations

@@ -1,15 +1,19 @@
 use std::collections::HashSet;
 use std::fmt::Write;
 
-use anyhow::Result;
+use anyhow::{bail, Result};
 use serde::{Deserialize, Serialize};
 
 use crate::report_data::IssueID;
 
 #[derive(Serialize, Deserialize, Clone)]
-pub struct Roadmap;
+pub struct ConfluenceRoadmap {
+    confluence: crate::confluence::ConfluenceServer,
+    space: String,
+    title: String,
+}
 
-impl Roadmap {
+impl ConfluenceRoadmap {
     fn get_task(&self, issue: &crate::report::ReportIssue) -> String {
         let mut col1 = format!(
             " *{}*",
@@ -208,9 +212,14 @@ impl Roadmap {
         Ok(result)
     }
 
-    pub async fn make(&self, data: &crate::report_data::ReportData) -> Result<()> {
-        println!("\nh1. Задачи\n");
-        println!("|| Описание таска || Эпик || Jira-таск || Сроки ||");
+    pub fn generate(&self, data: &crate::report_data::ReportData) -> Result<String> {
+        let mut output = String::new();
+
+        writeln!(&mut output, "\nh1. Задачи\n")?;
+        writeln!(
+            &mut output,
+            "|| Описание таска || Эпик || Jira-таск || Сроки ||"
+        )?;
 
         let mut issues: Vec<_> = data
             .issues
@@ -244,9 +253,74 @@ impl Roadmap {
                 })
         });
 
-        print!("{}", self.make_general_list(data, issues.as_slice())?);
-        print!("{}", self.make_epics(data, issues.as_slice())?);
-        print!("{}", self.make_team_roadmaps(data, issues.as_slice())?);
+        writeln!(
+            &mut output,
+            "{}",
+            self.make_general_list(data, issues.as_slice())?
+        )?;
+        writeln!(&mut output, "{}", self.make_epics(data, issues.as_slice())?)?;
+        writeln!(
+            &mut output,
+            "{}",
+            self.make_team_roadmaps(data, issues.as_slice())?
+        )?;
+
+        writeln!(&mut output, "\nh1. Граф зависимостей\n")?;
+        writeln!(&mut output, "!dependency_graph.svg!")?;
+
+        Ok(output)
+    }
+
+    pub async fn upload_dependency_graph(
+        &self,
+        page_id: u64,
+        data: &crate::report_data::ReportData,
+    ) -> Result<()> {
+        let generator = crate::report_dependency_graph::DependencyGraph;
+        let svg = generator.make(data)?;
+        self.confluence
+            .upload_attachment(page_id, svg.path(), "dependency_graph.svg")
+            .await?;
+        Ok(())
+    }
+
+    pub async fn make(&self, data: &crate::report_data::ReportData) -> Result<()> {
+        let wiki_content = self.generate(data)?;
+
+        let get_result = self
+            .confluence
+            .get_content(&self.space, &self.title)
+            .await
+            .unwrap();
+
+        let current_content = match get_result.results.first() {
+            None => bail!("Page not found"),
+            Some(v) => v,
+        };
+
+        let id: u64 = current_content.id.parse()?;
+
+        self.upload_dependency_graph(id, data).await?;
+
+        let _result = self
+            .confluence
+            .update_content(
+                id,
+                crate::confluence_content_update::UpdateContentBody {
+                    version: crate::confluence_content_update::UpdateContentBodyVersion {
+                        number: current_content.version.number + 1,
+                    },
+                    title: current_content.title.clone(),
+                    content_type: crate::confluence_types::ContentType::Page,
+                    body: crate::confluence_types::ContentBody {
+                        storage: crate::confluence_types::ContentBodyStorage {
+                            value: wiki_content,
+                            representation: crate::confluence_types::ContentRepresentation::Wiki,
+                        },
+                    },
+                },
+            )
+            .await?;
 
         Ok(())
     }

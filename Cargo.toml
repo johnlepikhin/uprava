@@ -10,7 +10,7 @@ edition = "2021"
 atlassian-jira-rest-types = { path = "/tmp/atlassian-jira-rest-types" }
 clap = { version = "3", features = ["derive"] }
 clap_complete_command = "0.3"
-reqwest = {version = "0", features = ["blocking"] }
+reqwest = {version = "0", features = ["multipart", "stream"] }
 anyhow = "1"
 url = { version = "2", features = ["serde"] }
 serde = { version = "1", features = ["derive"] }
@@ -23,3 +23,6 @@ slog-envlogger = "2.2"
 humantime-serde = "1.0"
 humantime = "2"
 tokio = { version = "1.20", features = ["full"] }
+html2text = "0.4"
+tempfile = "3.3"
+mime_guess = "2.0"
