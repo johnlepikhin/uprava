@@ -6,11 +6,23 @@ use serde::{Deserialize, Serialize};
 
 use crate::report_data::IssueID;
 
+fn default_show_epics() -> bool {
+    true
+}
+
+fn default_show_team_roadmaps() -> bool {
+    true
+}
+
 #[derive(Serialize, Deserialize, Clone)]
 pub struct ConfluenceRoadmap {
     confluence: crate::confluence::ConfluenceServer,
     space: String,
     title: String,
+    #[serde(default = "default_show_epics")]
+    show_epics: bool,
+    #[serde(default = "default_show_team_roadmaps")]
+    show_team_roadmaps: bool,
 }
 
 impl ConfluenceRoadmap {
@@ -258,12 +270,18 @@ impl ConfluenceRoadmap {
             "{}",
             self.make_general_list(data, issues.as_slice())?
         )?;
-        writeln!(&mut output, "{}", self.make_epics(data, issues.as_slice())?)?;
-        writeln!(
-            &mut output,
-            "{}",
-            self.make_team_roadmaps(data, issues.as_slice())?
-        )?;
+
+        if self.show_epics {
+            writeln!(&mut output, "{}", self.make_epics(data, issues.as_slice())?)?;
+        }
+
+        if self.show_team_roadmaps {
+            writeln!(
+                &mut output,
+                "{}",
+                self.make_team_roadmaps(data, issues.as_slice())?
+            )?;
+        }
 
         writeln!(&mut output, "\nh1. Граф зависимостей\n")?;
         writeln!(&mut output, "!dependency_graph.svg!")?;

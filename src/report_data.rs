@@ -209,8 +209,11 @@ impl ReportData {
         foreign_relations: &[crate::report::ForeignRelation],
         issues: &mut IssuesList,
         deepness: usize,
+        ignore_fetch_errors: bool,
     ) -> Result<HashSet<Relation>> {
         let mut relations = HashSet::new();
+
+        slog_scope::info!("Fetching relations for issues list");
 
         let mut issues_to_process: Vec<_> = issues.all().values().cloned().collect();
         for deepness_level in 0..deepness {
@@ -294,20 +297,36 @@ impl ReportData {
                         }
                     };
                     if relation_added && !issue_registered {
-                        let linked_issue = match linked_issue {
+                        match linked_issue {
                             None => {
-                                issues
+                                let result = issues
                                     .get_fetch(
                                         &link_jira,
                                         &link_key,
                                         crate::report::ReportIssueType::ExternalDependency,
                                     )
-                                    .await?
+                                    .await;
+                                match result {
+                                    Ok(linked_issue) => {
+                                        let _ = new_issues_to_process.insert(
+                                            IssueID::of_issue(linked_issue),
+                                            linked_issue.clone(),
+                                        );
+                                    }
+                                    Err(err) => {
+                                        if !ignore_fetch_errors {
+                                            return Err(err);
+                                        } else {
+                                            slog_scope::warn!("Failed to fetch dependency, but ignore_fetch_errors is in action")
+                                        }
+                                    }
+                                }
                             }
-                            Some(v) => v,
-                        };
-                        let _ = new_issues_to_process
-                            .insert(IssueID::of_issue(linked_issue), linked_issue.clone());
+                            Some(linked_issue) => {
+                                let _ = new_issues_to_process
+                                    .insert(IssueID::of_issue(linked_issue), linked_issue.clone());
+                            }
+                        }
                     }
                 }
             }
@@ -316,7 +335,9 @@ impl ReportData {
         Ok(relations)
     }
 
-    async fn get_epics(issues: &mut IssuesList) -> Result<IssuesList> {
+    async fn get_epics(issues: &mut IssuesList, ignore_fetch_errors: bool) -> Result<IssuesList> {
+        slog_scope::info!("Fetching EPICs for issues list");
+
         let mut epics = IssuesList::new();
         let issues_to_process: Vec<_> = issues.all().values().cloned().collect();
         for issue in &issues_to_process {
@@ -331,10 +352,21 @@ impl ReportData {
             match issues.get(&issue.jira, epic_key) {
                 Some(v) => epics.insert(v),
                 None => {
-                    let epic = epics
+                    match epics
                         .get_fetch(&issue.jira, epic_key, crate::report::ReportIssueType::Epic)
-                        .await?;
-                    issues.insert(epic)
+                        .await
+                    {
+                        Ok(epic) => issues.insert(epic),
+                        Err(err) => {
+                            if !ignore_fetch_errors {
+                                return Err(err);
+                            } else {
+                                slog_scope::warn!(
+                                    "Failed to fetch EPIC, but ignore_fetch_errors is in action"
+                                )
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -345,11 +377,17 @@ impl ReportData {
         foreign_relations: &[crate::report::ForeignRelation],
         slice: &[crate::report::ReportIssue],
         dependencies_deepness: usize,
+        ignore_fetch_errors: bool,
     ) -> Result<Self> {
         let mut issues = IssuesList::of_slice(slice);
-        let relations =
-            Self::get_relations(foreign_relations, &mut issues, dependencies_deepness).await?;
-        let epics = Self::get_epics(&mut issues).await?;
+        let relations = Self::get_relations(
+            foreign_relations,
+            &mut issues,
+            dependencies_deepness,
+            ignore_fetch_errors,
+        )
+        .await?;
+        let epics = Self::get_epics(&mut issues, ignore_fetch_errors).await?;
         Ok(Self {
             issues,
             epics,

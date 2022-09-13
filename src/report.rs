@@ -67,6 +67,10 @@ fn default_dependencies_deepness() -> usize {
     1
 }
 
+fn default_ignore_fetch_errors() -> bool {
+    false
+}
+
 #[derive(Serialize, Deserialize, Clone)]
 pub struct Report {
     pub queries: Vec<crate::config::JiraQuery>,
@@ -75,6 +79,8 @@ pub struct Report {
     pub foreign_relations: Vec<ForeignRelation>,
     #[serde(default = "default_dependencies_deepness")]
     pub dependencies_deepness: usize,
+    #[serde(default = "default_ignore_fetch_errors")]
+    pub ignore_fetch_errors: bool,
 }
 
 impl Report {
@@ -113,6 +119,7 @@ impl Report {
             &self.foreign_relations,
             &issues_list,
             self.dependencies_deepness,
+            self.ignore_fetch_errors,
         )
         .await?;
         for result in &self.results {
