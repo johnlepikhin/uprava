@@ -1,6 +1,8 @@
 use anyhow::Result;
 use std::collections::{HashMap, HashSet};
 
+use crate::report::ReportIssue;
+
 #[derive(Hash, PartialEq, Eq, Clone, Debug)]
 pub struct IssueID {
     pub jira: crate::jira::JiraServer,
@@ -71,25 +73,25 @@ impl IssuesList {
         self.issues.get(&id)
     }
 
-    pub async fn get_fetch(
-        &mut self,
-        jira: &crate::jira::JiraServer,
-        key: &str,
-        entity_type: crate::report::ReportIssueType,
-    ) -> Result<&crate::report::ReportIssue> {
-        let id = IssueID::new(jira, key);
-        if self.issues.contains_key(&id) {
-            Ok(self.issues.get(&id).unwrap())
-        } else {
-            let issue = crate::report::ReportIssue::of_issuebean(
-                jira,
-                &jira.issue_bean(key).await?,
-                entity_type,
-            )?;
-            let _ = self.issues.insert(IssueID::of_issue(&issue), issue);
-            Ok(self.issues.get(&id).unwrap())
-        }
-    }
+    // pub async fn get_fetch(
+    //     &mut self,
+    //     jira: &crate::jira::JiraServer,
+    //     key: &str,
+    //     entity_type: crate::report::ReportIssueType,
+    // ) -> Result<&crate::report::ReportIssue> {
+    //     let id = IssueID::new(jira, key);
+    //     if self.issues.contains_key(&id) {
+    //         Ok(self.issues.get(&id).unwrap())
+    //     } else {
+    //         let issue = crate::report::ReportIssue::of_issuebean(
+    //             jira,
+    //             &jira.issue_bean(key).await?,
+    //             entity_type,
+    //         )?;
+    //         let _ = self.issues.insert(IssueID::of_issue(&issue), issue);
+    //         Ok(self.issues.get(&id).unwrap())
+    //     }
+    // }
 
     pub fn all(&self) -> &HashMap<IssueID, crate::report::ReportIssue> {
         &self.issues
@@ -209,7 +211,6 @@ impl ReportData {
         foreign_relations: &[crate::report::ForeignRelation],
         issues: &mut IssuesList,
         deepness: usize,
-        ignore_fetch_errors: bool,
     ) -> Result<HashSet<Relation>> {
         let mut relations = HashSet::new();
 
@@ -219,6 +220,7 @@ impl ReportData {
         for deepness_level in 0..deepness {
             slog_scope::info!("Fetching relations at level {}", deepness_level + 1);
             let mut new_issues_to_process = HashMap::new();
+            let mut issues_to_fetch = HashSet::new();
             for issue in &issues_to_process {
                 slog_scope::info!("Fetching relations for {:?}", issue.issue.key);
                 let issue_links = Self::issue_links(foreign_relations, issue);
@@ -299,28 +301,7 @@ impl ReportData {
                     if relation_added && !issue_registered {
                         match linked_issue {
                             None => {
-                                let result = issues
-                                    .get_fetch(
-                                        &link_jira,
-                                        &link_key,
-                                        crate::report::ReportIssueType::ExternalDependency,
-                                    )
-                                    .await;
-                                match result {
-                                    Ok(linked_issue) => {
-                                        let _ = new_issues_to_process.insert(
-                                            IssueID::of_issue(linked_issue),
-                                            linked_issue.clone(),
-                                        );
-                                    }
-                                    Err(err) => {
-                                        if !ignore_fetch_errors {
-                                            return Err(err);
-                                        } else {
-                                            slog_scope::warn!("Failed to fetch dependency, but ignore_fetch_errors is in action")
-                                        }
-                                    }
-                                }
+                                let _ = issues_to_fetch.insert(IssueID::new(&link_jira, &link_key));
                             }
                             Some(linked_issue) => {
                                 let _ = new_issues_to_process
@@ -330,16 +311,50 @@ impl ReportData {
                     }
                 }
             }
+
+            // Обработать issues_to_fetch: скачать, добавить в new_issues_to_process
+            let mut fetch_by_jira = HashMap::new();
+            for issue_id in issues_to_fetch.iter() {
+                match fetch_by_jira.get_mut(&issue_id.jira) {
+                    None => {
+                        let _ = fetch_by_jira.insert(&issue_id.jira, vec![&issue_id.issue]);
+                    }
+                    Some(list) => list.push(&issue_id.issue),
+                }
+            }
+            for (jira, issues_list) in fetch_by_jira.iter() {
+                let jql = issues_list
+                    .iter()
+                    .map(|key| format!("key = {}", key))
+                    .collect::<Vec<_>>()
+                    .join(" OR ");
+                let result = jira
+                    .search_all(&crate::jira::SearchGetParams::new(&jql))
+                    .await?;
+                for linked_issue in result {
+                    let linked_issue = crate::jira_types::IssueBean::of_json(linked_issue)?;
+                    let linked_issue = ReportIssue::of_issuebean(
+                        jira,
+                        &linked_issue,
+                        crate::report::ReportIssueType::ExternalDependency,
+                    )?;
+                    issues.insert(&linked_issue);
+                    let _ = new_issues_to_process
+                        .insert(IssueID::of_issue(&linked_issue), linked_issue);
+                }
+            }
+
             issues_to_process = new_issues_to_process.into_values().collect()
         }
         Ok(relations)
     }
 
-    async fn get_epics(issues: &mut IssuesList, ignore_fetch_errors: bool) -> Result<IssuesList> {
+    async fn get_epics(issues: &mut IssuesList) -> Result<IssuesList> {
         slog_scope::info!("Fetching EPICs for issues list");
 
         let mut epics = IssuesList::new();
         let issues_to_process: Vec<_> = issues.all().values().cloned().collect();
+        let mut epics_to_fetch = HashSet::new();
         for issue in &issues_to_process {
             let epic_key = match &issue.custom_fields.epic_link {
                 None => continue,
@@ -352,22 +367,37 @@ impl ReportData {
             match issues.get(&issue.jira, epic_key) {
                 Some(v) => epics.insert(v),
                 None => {
-                    match epics
-                        .get_fetch(&issue.jira, epic_key, crate::report::ReportIssueType::Epic)
-                        .await
-                    {
-                        Ok(epic) => issues.insert(epic),
-                        Err(err) => {
-                            if !ignore_fetch_errors {
-                                return Err(err);
-                            } else {
-                                slog_scope::warn!(
-                                    "Failed to fetch EPIC, but ignore_fetch_errors is in action"
-                                )
-                            }
-                        }
-                    }
+                    let _ = epics_to_fetch.insert(IssueID::new(&issue.jira, epic_key));
                 }
+            }
+        }
+
+        // Обработать epics_to_fetch: скачать, добавить в epics
+        let mut fetch_by_jira = HashMap::new();
+        for issue_id in epics_to_fetch.iter() {
+            match fetch_by_jira.get_mut(&issue_id.jira) {
+                None => {
+                    let _ = fetch_by_jira.insert(&issue_id.jira, vec![&issue_id.issue]);
+                }
+                Some(list) => list.push(&issue_id.issue),
+            }
+        }
+
+        for (jira, issues_list) in fetch_by_jira.iter() {
+            let jql = issues_list
+                .iter()
+                .map(|key| format!("key = {}", key))
+                .collect::<Vec<_>>()
+                .join(" OR ");
+            let result = jira
+                .search_all(&crate::jira::SearchGetParams::new(&jql))
+                .await?;
+            for epic in result {
+                let epic = crate::jira_types::IssueBean::of_json(epic)?;
+                let epic =
+                    ReportIssue::of_issuebean(jira, &epic, crate::report::ReportIssueType::Epic)?;
+                issues.insert(&epic);
+                epics.insert(&epic);
             }
         }
 
@@ -377,17 +407,11 @@ impl ReportData {
         foreign_relations: &[crate::report::ForeignRelation],
         slice: &[crate::report::ReportIssue],
         dependencies_deepness: usize,
-        ignore_fetch_errors: bool,
     ) -> Result<Self> {
         let mut issues = IssuesList::of_slice(slice);
-        let relations = Self::get_relations(
-            foreign_relations,
-            &mut issues,
-            dependencies_deepness,
-            ignore_fetch_errors,
-        )
-        .await?;
-        let epics = Self::get_epics(&mut issues, ignore_fetch_errors).await?;
+        let relations =
+            Self::get_relations(foreign_relations, &mut issues, dependencies_deepness).await?;
+        let epics = Self::get_epics(&mut issues).await?;
         Ok(Self {
             issues,
             epics,
