@@ -80,22 +80,22 @@ pub struct Report {
 impl Report {
     pub async fn get_issues(&self) -> Result<Vec<ReportIssue>> {
         let mut issues_list = Vec::new();
-        let issues_futures = self.queries.iter().map(|query| {
+        let mut join_set = tokio::task::JoinSet::new();
+        for query in &self.queries {
             let query_clone = query.clone();
-            let handler = tokio::task::spawn(async move {
-                query_clone
+            let _abort_handle = join_set.spawn(async move {
+                let handler = query_clone
                     .jira
                     .search_all(&crate::jira::SearchGetParams::new(
                         query_clone.query.replace('\n', " ").trim(),
                     ))
-                    .await
+                    .await;
+                (handler, query_clone)
             });
-            (handler, query)
-        });
-        for pair in issues_futures {
-            let (issues_future, query) = pair;
-            let issues: Vec<_> = issues_future.await??;
-            for issue in issues {
+        }
+        while let Some(pair) = join_set.join_next().await {
+            let (result, query) = pair?;
+            for issue in result? {
                 let issue = crate::jira_types::IssueBean::of_json(issue)?;
                 issues_list.push(ReportIssue::of_issuebean(
                     &query.jira,

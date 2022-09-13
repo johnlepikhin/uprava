@@ -6,8 +6,7 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-# atlassian-jira-rest-types = "0.2"
-atlassian-jira-rest-types = { path = "/tmp/atlassian-jira-rest-types" }
+atlassian-jira-rest-types = "0.3"
 clap = { version = "3", features = ["derive"] }
 clap_complete_command = "0.3"
 reqwest = {version = "0", features = ["multipart", "stream"] }
@@ -22,7 +21,7 @@ slog-scope = "4"
 slog-envlogger = "2.2"
 humantime-serde = "1.0"
 humantime = "2"
-tokio = { version = "1.20", features = ["full"] }
+tokio = { version = "1.21", features = ["full", "rt"] }
 html2text = "0.4"
 tempfile = "3.3"
 mime_guess = "2.0"
