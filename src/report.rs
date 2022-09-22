@@ -41,6 +41,44 @@ impl ReportIssue {
         url.set_path(&format!("browse/{}", self.issue.key));
         url
     }
+
+    pub fn confluence_wiki_url(&self, newlines: bool) -> String {
+        let url = self.url();
+        format!(
+            "[{}|{}] {} {}",
+            self.issue.key,
+            url,
+            if newlines { "\\\\" } else { "" },
+            crate::confluence::wiki_escape(
+                &self
+                    .issue
+                    .fields
+                    .status
+                    .as_ref()
+                    .and_then(|v| v.name.clone())
+                    .unwrap_or_default()
+            )
+        )
+    }
+
+    pub fn confluence_wiki_schedule(&self) -> String {
+        let duration = self.custom_fields.plan();
+        let planned_end = self
+            .custom_fields
+            .planned_end
+            .unwrap_or_else(|| chrono::Utc::now().date() + chrono::Duration::days(100000));
+        let planned_start = self
+            .custom_fields
+            .planned_start
+            .unwrap_or_else(|| chrono::Utc::now().date() + chrono::Duration::days(100000));
+        if planned_end - chrono::Duration::days(3) < chrono::Utc::now().date() {
+            format!("{{color:red}}{}{{color}}", duration)
+        } else if planned_start - chrono::Duration::days(3) < chrono::Utc::now().date() {
+            format!("{{color:green}}{}{{color}}", duration)
+        } else {
+            duration
+        }
+    }
 }
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -63,25 +101,14 @@ pub struct ForeignRelation {
     pub to: ForeignRelationSubject,
 }
 
-fn default_dependencies_deepness() -> usize {
-    1
-}
-
 #[derive(Serialize, Deserialize, Clone)]
-pub struct Report {
-    pub queries: Vec<crate::config::JiraQuery>,
-    pub results: Vec<ReportResult>,
-    #[serde(default)]
-    pub foreign_relations: Vec<ForeignRelation>,
-    #[serde(default = "default_dependencies_deepness")]
-    pub dependencies_deepness: usize,
-}
+pub struct QuerySet(Vec<crate::config::JiraQuery>);
 
-impl Report {
+impl QuerySet {
     pub async fn get_issues(&self) -> Result<Vec<ReportIssue>> {
         let mut issues_list = Vec::new();
         let mut join_set = tokio::task::JoinSet::new();
-        for query in &self.queries {
+        for query in &self.0 {
             let query_clone = query.clone();
             let _abort_handle = join_set.spawn(async move {
                 let handler = query_clone
@@ -106,20 +133,10 @@ impl Report {
         }
         Ok(issues_list)
     }
+}
 
-    pub async fn make(&self) -> Result<()> {
-        let issues_list = self.get_issues().await?;
-        let data = crate::report_data::ReportData::of_slice(
-            &self.foreign_relations,
-            &issues_list,
-            self.dependencies_deepness,
-        )
-        .await?;
-        for result in &self.results {
-            match result {
-                ReportResult::ConfluenceRoadmap(v) => v.make(&data).await?,
-            }
-        }
-        Ok(())
-    }
+#[derive(Serialize, Deserialize, Clone)]
+pub enum Report {
+    ConfluenceRoadmap(crate::report_confluence_roadmap::ConfluenceRoadmap),
+    Worklog(crate::report_worklog::Worklog),
 }

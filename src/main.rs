@@ -11,6 +11,7 @@ mod report;
 mod report_confluence_roadmap;
 mod report_data;
 mod report_dependency_graph;
+mod report_worklog;
 mod serde;
 
 extern crate slog_scope;
@@ -300,7 +301,10 @@ impl CmdReportMake {
             None => bail!("Report {:?} is not defined in config file", self.report),
             Some(v) => v,
         };
-        report.make().await?;
+        match report {
+            report::Report::ConfluenceRoadmap(v) => v.make().await?,
+            report::Report::Worklog(v) => v.make().await?,
+        }
 
         Ok(())
     }

@@ -105,28 +105,60 @@ foreign_relations: &foreign_relations
       issue: QAMAILCORE-307
       kind: dependance for
 
+
 # Конфиг отчетов
 reports:
   # Произвольное имя отчета
   roadmap:
-    # Список запросов из разных джир, которые будут объединены в отчете
-    queries:
-        # Из какой джиры взять
-      - jira: *default_jira_instance
-        # Какой запрос выполнить
-        query: '(project = QAMAILCORE or assignee in ("e.lepikhin@mail.msk", "a.martirosyan@mail.msk", "art.antonov@mail.msk", "m.papikyan@mail.msk" )) and status not in (Closed, Done, Cancelled, Закрыт, Rejected) and type != Epic order by updatedDate desc'
-      - jira: *hr_jira
-        query: 'reporter = currentUser() and status not in (Closed, Done, Cancelled, Review) ORDER BY updatedDate DESC'
-    results:
-      # Тип отчета: сохранить в ранее созданную страницу роадмап заданной выборки
-      - ConfluenceRoadmap:
-          # Инстанс конфлюенса
-          confluence: *default_confluence_instance
-          # Имя спейса
-          space: TESTCOREMAIL
-          # Имя страницы
-          title: Roadmap
-    # Конфигурация внешних связей задач между джирами
-    foreign_relations: *foreign_relations
-    # Глубина рекурсии при выдергивании связанных тасков
-    dependencies_deepness: 1
+    # Тип отчета: сохранить в ранее созданную страницу роадмап заданной выборки
+    ConfluenceRoadmap:
+      # Инстанс конфлюенса
+      confluence: *default_confluence_instance
+      # Имя спейса
+      space: TESTCOREMAIL
+      # Имя страницы
+      title: Roadmap
+      # Глубина рекурсии при выдергивании связанных тасков
+      dependencies_deepness: 1
+      # Список запросов из разных джир, которые будут объединены в отчете
+      query_set:
+        # Из какой джиры запросить
+        - jira: *default_jira_instance
+          # Какой запрос выполнить
+          query: |
+            (project = QAMAILCORE
+              or assignee in ("e.lepikhin@mail.msk",
+                              "a.martirosyan@mail.msk",
+                              "art.antonov@mail.msk",
+                              "m.papikyan@mail.msk",
+                              "k.soldatov@mail.msk"))
+            and status not in (Closed, Done, Cancelled, Закрыт, Rejected) and type != Epic
+            order by updatedDate desc
+          # Из какой джиры запросить
+        - jira: *hr_jira
+          # Какой запрос выполнить
+          query: 'reporter = currentUser() and status not in (Closed, Done, Cancelled, Review) ORDER BY updatedDate DESC'
+      # Конфигурация внешних связей задач между джирами
+      foreign_relations: *foreign_relations
+
+  # Произвольное имя отчета
+  weekly-report:
+    # Тип отчета: журнал работ. По факту, просто список отдельных однотипных отчетов, которые будут сохранены на одной странице
+    Worklog:
+      # Инстанс конфлюенса
+      confluence: *default_confluence_instance
+      # Имя спейса
+      space: TESTCOREMAIL
+      # Имя страницы
+      title: Worklog
+      members:
+          # имя отчёта
+        - name: Артем Антонов
+          # Список запросов из разных джир, которые будут объединены в отчете
+          query_set:
+            - jira: *default_jira_instance
+              query: assignee was "art.antonov@mail.msk" and updatedDate >= -7d and type != Epic
+        - name: Аршак Мартиросян
+          query_set:
+            - jira: *default_jira_instance
+              query: assignee was "a.martirosyan@mail.msk" and updatedDate >= -7d and type != Epic

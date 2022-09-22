@@ -14,8 +14,13 @@ fn default_show_team_roadmaps() -> bool {
     true
 }
 
+fn default_dependencies_deepness() -> usize {
+    1
+}
+
 #[derive(Serialize, Deserialize, Clone)]
 pub struct ConfluenceRoadmap {
+    query_set: crate::report::QuerySet,
     confluence: crate::confluence::ConfluenceServer,
     space: String,
     title: String,
@@ -23,6 +28,10 @@ pub struct ConfluenceRoadmap {
     show_epics: bool,
     #[serde(default = "default_show_team_roadmaps")]
     show_team_roadmaps: bool,
+    #[serde(default = "default_dependencies_deepness")]
+    dependencies_deepness: usize,
+    #[serde(default)]
+    foreign_relations: Vec<crate::report::ForeignRelation>,
 }
 
 impl ConfluenceRoadmap {
@@ -49,45 +58,6 @@ impl ConfluenceRoadmap {
         }
 
         col1
-    }
-
-    fn get_issue_link(&self, issue: &crate::report::ReportIssue, newlines: bool) -> String {
-        let mut issue_url = issue.jira.base_url.clone();
-        issue_url.set_path(&format!("browse/{}", issue.issue.key));
-        format!(
-            "[{}|{}] {} {}",
-            issue.issue.key,
-            issue_url,
-            if newlines { "\\\\" } else { "" },
-            crate::confluence::wiki_escape(
-                &issue
-                    .issue
-                    .fields
-                    .status
-                    .as_ref()
-                    .and_then(|v| v.name.clone())
-                    .unwrap_or_default()
-            )
-        )
-    }
-
-    fn get_issue_plan(&self, issue: &crate::report::ReportIssue) -> String {
-        let duration = issue.custom_fields.plan();
-        let planned_end = issue
-            .custom_fields
-            .planned_end
-            .unwrap_or_else(|| chrono::Utc::now().date() + chrono::Duration::days(100000));
-        let planned_start = issue
-            .custom_fields
-            .planned_start
-            .unwrap_or_else(|| chrono::Utc::now().date() + chrono::Duration::days(100000));
-        if planned_end - chrono::Duration::days(3) < chrono::Utc::now().date() {
-            format!("{{color:red}}{}{{color}}", duration)
-        } else if planned_start - chrono::Duration::days(3) < chrono::Utc::now().date() {
-            format!("{{color:green}}{}{{color}}", duration)
-        } else {
-            duration
-        }
     }
 
     fn make_team_roadmaps(
@@ -144,8 +114,8 @@ impl ConfluenceRoadmap {
                         Some(v) => v.custom_fields.epic_name.as_deref().unwrap_or_default(),
                     },
                 };
-                let col3 = self.get_issue_link(issue, false);
-                let col4 = self.get_issue_plan(issue);
+                let col3 = issue.confluence_wiki_url(false);
+                let col4 = issue.confluence_wiki_schedule();
 
                 writeln!(&mut result, "| {} | {} | {} | {} |", col1, col2, col3, col4)?
             }
@@ -215,8 +185,8 @@ impl ConfluenceRoadmap {
                 },
             };
 
-            let col3 = self.get_issue_link(issue, true);
-            let col4 = self.get_issue_plan(issue);
+            let col3 = issue.confluence_wiki_url(true);
+            let col4 = issue.confluence_wiki_schedule();
 
             writeln!(&mut result, "| {} | {} | {} | {} |", col1, col2, col3, col4)?
         }
@@ -302,8 +272,16 @@ impl ConfluenceRoadmap {
         Ok(())
     }
 
-    pub async fn make(&self, data: &crate::report_data::ReportData) -> Result<()> {
-        let wiki_content = self.generate(data)?;
+    pub async fn make(&self) -> Result<()> {
+        let issues_list = self.query_set.get_issues().await?;
+        let data = crate::report_data::ReportData::of_slice(
+            &self.foreign_relations,
+            &issues_list,
+            self.dependencies_deepness,
+        )
+        .await?;
+
+        let wiki_content = self.generate(&data)?;
 
         let get_result = self
             .confluence
@@ -318,7 +296,7 @@ impl ConfluenceRoadmap {
 
         let id: u64 = current_content.id.parse()?;
 
-        self.upload_dependency_graph(id, data).await?;
+        self.upload_dependency_graph(id, &data).await?;
 
         let _result = self
             .confluence
