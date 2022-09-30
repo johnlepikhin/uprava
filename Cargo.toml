@@ -1,7 +1,6 @@
-[package]
-name = "uprava"
-version = "0.1.0"
-edition = "2021"
+package.name = "uprava"
+package.version = "0.1.0"
+package.edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
