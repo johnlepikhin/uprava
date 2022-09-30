@@ -1,4 +1,11 @@
 * Changelog
+** [2022-09-30] v0.2.0
+
+*** New features
+
+ - Added CI (c864e5a)
+
+
 
 ** [2022-09-30] v0.1.0
 
