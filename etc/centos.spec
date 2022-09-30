@@ -29,7 +29,7 @@ Build details: %__hammer_build_url__
 
 %build
 if [ -e VERSION ]; then
-   sed -i -e "s/^package[.]version = .*/package.version = \"$(cat VERSION)\"/" */Cargo.toml
+   sed -i -e "s/^package[.]version = .*/package.version = \"$(cat VERSION)\"/" Cargo.toml
 fi
 cargo build --release
 
