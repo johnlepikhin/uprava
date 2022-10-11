@@ -1,4 +1,16 @@
 * Changelog
+** [2022-10-11] v0.3.0
+
+*** New features
+
+ - Vendored sources (9b75927)
+
+*** Bugfixes
+
+ - Added missing file to rpm (fc8790f)
+ - Path to Cargo.toml (ce54197)
+
+
 ** [2022-09-30] v0.2.0
 
 *** New features
