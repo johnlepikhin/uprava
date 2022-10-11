@@ -46,3 +46,4 @@ rm -rf %{buildroot}
 %files
 %defattr(-,root,root,-)
 %{_bindir}/uprava
+%{_sysconfdir}/uprava.example.yaml
