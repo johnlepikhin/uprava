@@ -1,4 +1,11 @@
 * Changelog
+** [2022-10-11] v0.3.1
+
+*** Bugfixes
+
+ - Use newer version of rust (431982a)
+
+
 ** [2022-10-11] v0.3.0
 
 *** New features
