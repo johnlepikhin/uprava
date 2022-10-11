@@ -5,8 +5,8 @@ build_hammer_el7:
       prepare_stages:
         - cache: 30days
           operations:
-            - Exec: yum  install -y autoconf automake libtool llvm-devel clang lxc-devel openssl-devel rpmdevtools yum-utils  gcc git autoconf
-            - Exec: curl -s https://rust.devmail.ru/rustup.sh | sh /dev/stdin -y --default-toolchain nightly-2022-03-06
+            - Exec: yum  install -y autoconf automake libtool llvm-devel clang lxc-devel openssl-devel rpmdevtools yum-utils gcc git autoconf
+            - Exec: curl -s https://rust.devmail.ru/rustup.sh | sh /dev/stdin -y --default-toolchain 1.64.0
     build:
       builder:
         Rpm:
