@@ -1,0 +1,9 @@
+* About
+
+Yet another tool to work with Atlassian's Jira and Confluence.
+
+Key features:
+ - Multiple Jira and Confluence instances
+ - Connect tasks from different Jira instances
+ - Generate reports and multi-reports based on provided JQL
+ - Generate dependency trees with Graphviz
