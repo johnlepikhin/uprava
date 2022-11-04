@@ -1,0 +1,59 @@
+* Changelog
+** [2022-10-11] v0.3.1
+
+*** Bugfixes
+
+ - Use newer version of rust (431982a)
+
+
+** [2022-10-11] v0.3.0
+
+*** New features
+
+ - Vendored sources (9b75927)
+
+*** Bugfixes
+
+ - Added missing file to rpm (fc8790f)
+ - Path to Cargo.toml (ce54197)
+
+
+** [2022-09-30] v0.2.0
+
+*** New features
+
+ - Added CI (c864e5a)
+
+
+
+** [2022-09-30] v0.1.0
+
+*** New features
+
+ - Added rpm spec file (4ee7c93)
+ - Worklog report (9355a9c)
+ - Optional subreports (274c861)
+ - Publish reports to Confluence, other features (768f053)
+ - [WIP] Confluence support (538f6ba)
+ - Per-assignee roadmaps (a13f6ec)
+ - Added example config (cd69f96)
+ - Configurable deps deepness (0b35a32)
+ - Added config defaults (730d301)
+ - Beta (807426e)
+ - [WIP] Initial release (d5d5ffe)
+
+*** Bugfixes
+
+ - Accept arbitrary Jira queries with params (d49f686)
+ - Issues reported by linter (7fe83ad)
+ - Show EPICs for requested tasks only (037dc8f)
+ - Issues reported by linter (7a9df65)
+ - Quote entities in HTML-like labels (d4f808e)
+
+*** Other changes
+
+ - Parallel multi-jira queries (fd4e9d4)
+ - Optimized recursive issues fetching (b3de1d1)
+ - Improved config structure (7de5943)
+ - Split roadmap generator to multiple functions (4a213b1)
+

@@ -1,0 +1,160 @@
+
+jira_instances:
+  default: &default_jira_instance
+    base_url: https://jira-1.example.com
+    # Доступ к джире
+    access:
+      # Тип доступа: персональный токен
+      Token:
+        # Токен взять из STDOUT указанной программы
+        Program: pass show jira1-token
+        # Можно задать напрямую в конфиге:
+        # String: my_secret_token
+    # Маппинг полей джиры во внутренние стандартные поля
+    custom_fields:
+      # "Обоснование"
+      reason:
+        name: customfield_26600
+      # Ссылка на эпик
+      epic_link:
+        name: customfield_15500
+      # Имя эпика
+      epic_name:
+        name: customfield_15501
+      planned_start:
+        name: customfield_10050
+      planned_end:
+        name: customfield_10051
+    # Маппинг кастомных имён зависимостей в стандартные
+    relations_map:
+      -
+        # Кастомное имя зависимости
+        - "Ожидается для"
+        # Стандартное джира-имя зависимости
+        - "dependance for"
+      -
+        - "Ожидает"
+        - "depends on"
+      -
+        - "is triggered by"
+        - "dependance for"
+      -
+        - "is triggering"
+        - "depends on"
+      -
+        - "is caused by"
+        - "dependance for"
+      -
+        - "causes"
+        - "depends on"
+      -
+        - "Tested in"
+        - "mentions"
+      -
+        - "Tested for"
+        - "mentioned in"
+      -
+        - "Раскладка для"
+        - "mentions"
+  jira2: &jira2
+    base_url: https://jira-2.example.com
+    access:
+      # Хак для старой джиры: значение сессионной куки (быстро протухает!)
+      JSessionID:
+        Program: pass show jira2-token
+    custom_fields:
+      reason:
+        name: NONE
+      epic_link:
+        name: NONE
+      epic_name:
+        name: NONE
+      planned_start:
+        name: NONE
+      planned_end:
+        name: NONE
+    relations_map: []
+
+default_jira_instance: *default_jira_instance
+
+# Список внешних зависимостей тасков между разными джирами
+# Это значение-ссылка, чтобы не копипастить
+foreign_relations: &foreign_relations
+    # Откуда ведет зависимость
+  - from:
+      # Инстанс джиры
+      jira: *jira2
+      # Таск в исходной джире
+      issue: MYPROJECT-1
+      # Тип зависимости с точки зрения таска источника
+      kind: depends on
+    # Куда ведет зависимость
+    to:
+      # Инстанс джиры
+      jira: *default_jira_instance
+      # Таск в джире назначения
+      issue: OTHERPROJECT-316
+      # Тип зависимости с точки зрения таска назначения
+      kind: dependance for
+  - from:
+      jira: *jira2
+      issue: MYPROJECT-2
+      kind: depends on
+    to:
+      jira: *default_jira_instance
+      issue: OTHERPROJECT-307
+      kind: dependance for
+
+
+# Конфиг отчетов
+reports:
+  # Произвольное имя отчета
+  roadmap:
+    # Тип отчета: сохранить в ранее созданную страницу роадмап заданной выборки
+    ConfluenceRoadmap:
+      # Инстанс конфлюенса
+      confluence: *default_confluence_instance
+      # Имя спейса
+      space: DOCS
+      # Имя страницы
+      title: Roadmap
+      # Глубина рекурсии при выдергивании связанных тасков
+      dependencies_deepness: 1
+      # Список запросов из разных джир, которые будут объединены в отчете
+      query_set:
+        # Из какой джиры запросить
+        - jira: *default_jira_instance
+          # Какой запрос выполнить
+          query: |
+            (project = MYPROJECT
+              or assignee in ("e.lepikhin"))
+            and status not in (Closed, Done, Cancelled, Закрыт, Rejected) and type != Epic
+            order by updatedDate desc
+          # Из какой джиры запросить
+        - jira: *jira2
+          # Какой запрос выполнить
+          query: 'reporter = currentUser() and status not in (Closed, Done, Cancelled, Review) ORDER BY updatedDate DESC'
+      # Конфигурация внешних связей задач между джирами
+      foreign_relations: *foreign_relations
+
+  # Произвольное имя отчета
+  weekly-report:
+    # Тип отчета: журнал работ. По факту, просто список отдельных однотипных отчетов, которые будут сохранены на одной странице
+    Worklog:
+      # Инстанс конфлюенса
+      confluence: *default_confluence_instance
+      # Имя спейса
+      space: DOCS
+      # Имя страницы
+      title: Worklog
+      members:
+          # имя отчёта
+        - name: Evgenii Lepikhin
+          # Список запросов из разных джир, которые будут объединены в отчете
+          query_set:
+            - jira: *default_jira_instance
+              query: assignee was "e.lepikhin" and updatedDate >= -7d and type != Epic
+        - name: John Doe
+          query_set:
+            - jira: *default_jira_instance
+              query: assignee was "john.doe" and updatedDate >= -7d and type != Epic

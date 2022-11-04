@@ -1,0 +1,23 @@
+package.name = "uprava"
+package.version = "0.1.0"
+package.edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+atlassian-jira-rest-types = "0.3"
+clap = { version = "4.0", features = ["derive"] }
+clap_complete_command = "0.4"
+reqwest = {version = "0.11", features = ["multipart", "stream"] }
+anyhow = "1.0"
+url = { version = "2.0", features = ["serde"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1.0"
+serde_yaml = "0.9"
+chrono = { version = "0.4", features = ["serde"] }
+slog-scope = "4.0"
+slog-envlogger = "2.2"
+tokio = { version = "1.21", features = ["full", "rt"] }
+html2text = "0.4"
+tempfile = "3.3"
+mime_guess = "2.0"

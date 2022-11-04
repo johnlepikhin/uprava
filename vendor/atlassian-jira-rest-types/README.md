@@ -1,0 +1,1 @@
+# atlassian-jira-rest-types
