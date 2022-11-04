@@ -2,7 +2,7 @@ use std::str::FromStr;
 
 use anyhow::Result;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum SerdePrinter {
     Yaml,
     Json,

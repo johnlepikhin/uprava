@@ -137,6 +137,8 @@ impl QuerySet {
 
 #[derive(Serialize, Deserialize, Clone)]
 pub enum Report {
+    #[serde(with = "serde_yaml::with::singleton_map")]
     ConfluenceRoadmap(crate::report_confluence_roadmap::ConfluenceRoadmap),
+    #[serde(with = "serde_yaml::with::singleton_map")]
     Worklog(crate::report_worklog::Worklog),
 }

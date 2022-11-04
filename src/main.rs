@@ -19,7 +19,7 @@ extern crate slog_scope;
 use std::io::Read;
 
 use anyhow::{bail, Result};
-use clap::{Args, IntoApp, Parser, Subcommand};
+use clap::{Args, CommandFactory, Parser, Subcommand};
 
 const APP_CONFIG: &str = "uprava.yaml";
 
@@ -301,7 +301,7 @@ impl CmdReportMake {
             None => bail!("Report {:?} is not defined in config file", self.report),
             Some(v) => v,
         };
-        match report {
+        match &report.0 {
             report::Report::ConfluenceRoadmap(v) => v.make().await?,
             report::Report::Worklog(v) => v.make().await?,
         }
@@ -332,7 +332,6 @@ enum CmdApplication {
     #[clap(subcommand)]
     Report(CmdReport),
     Completions {
-        #[clap(arg_enum)]
         shell: clap_complete_command::Shell,
     },
 }

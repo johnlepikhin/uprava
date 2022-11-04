@@ -4,6 +4,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Serialize, Deserialize, Clone, Hash, PartialEq, Eq, Debug)]
 pub struct ConfluenceServer {
     pub base_url: url::Url,
+    #[serde(with = "serde_yaml::with::singleton_map")]
     pub access: crate::authentication::Access,
 }
 

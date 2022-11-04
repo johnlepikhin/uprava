@@ -114,6 +114,7 @@ impl IssueCustomFields {
 #[derive(Serialize, Deserialize, Clone, Hash, PartialEq, Eq, Debug)]
 pub struct JiraServer {
     pub base_url: url::Url,
+    #[serde(with = "serde_yaml::with::singleton_map")]
     pub access: crate::authentication::Access,
     pub custom_fields: IssueCustomFieldsConfig,
     #[serde(default)]
@@ -285,7 +286,7 @@ impl CommentPrinter {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum IssuePrinter {
     Email,
     Serde(crate::printer::SerdePrinter),

@@ -17,6 +17,9 @@ pub struct JiraQuery {
 }
 
 #[derive(Serialize, Deserialize, Clone)]
+pub struct Report(#[serde(with = "serde_yaml::with::singleton_map")] pub crate::report::Report);
+
+#[derive(Serialize, Deserialize, Clone)]
 pub struct Config {
     pub default_jira_instance: JiraServer,
     #[serde(default)]
@@ -25,7 +28,7 @@ pub struct Config {
     #[serde(default)]
     pub confluence_instances: HashMap<String, ConfluenceServer>,
     #[serde(default)]
-    pub reports: HashMap<String, crate::report::Report>,
+    pub reports: HashMap<String, Report>,
 }
 
 impl Config {

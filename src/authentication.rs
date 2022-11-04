@@ -42,6 +42,8 @@ impl Secret {
 
 #[derive(Serialize, Deserialize, Clone, Hash, PartialEq, Eq, Debug)]
 pub enum Access {
+    #[serde(with = "serde_yaml::with::singleton_map")]
     Token(Secret),
+    #[serde(with = "serde_yaml::with::singleton_map")]
     JSessionID(Secret),
 }

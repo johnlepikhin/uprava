@@ -20,7 +20,7 @@ pub struct GetResult {
     pub version: ContentVersion,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum ContentPrinter {
     Email,
     Serde(crate::printer::SerdePrinter),
