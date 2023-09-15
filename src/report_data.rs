@@ -392,13 +392,17 @@ impl ReportData {
             let result = jira
                 .search_all(&crate::jira::SearchGetParams::new(&jql))
                 .await?;
+            slog_scope::debug!("Found {} tasks", result.len());
             for epic in result {
                 let epic = crate::jira_types::IssueBean::of_json(epic)?;
+                slog_scope::debug!("Processing task {}", epic.key);
                 let epic =
                     ReportIssue::of_issuebean(jira, &epic, crate::report::ReportIssueType::Epic)?;
+                slog_scope::debug!("Adding epic");
                 issues.insert(&epic);
                 epics.insert(&epic);
             }
+            slog_scope::debug!("Done collecting epics");
         }
 
         Ok(epics)
