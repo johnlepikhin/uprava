@@ -108,11 +108,20 @@ impl ConfluenceRoadmap {
             for issue in assignee_issues {
                 let col1 = crate::confluence::wiki_escape(&issue.issue.fields.summary);
                 let col2 = match &issue.custom_fields.epic_link {
-                    None => "",
-                    Some(epic_key) => match data.epics.get(&issue.jira, epic_key) {
-                        None => "",
-                        Some(v) => v.custom_fields.epic_name.as_deref().unwrap_or_default(),
-                    },
+                    None => {
+                        slog_scope::debug!("epic_link was empty");
+                        ""
+                    }
+                    Some(epic_key) => {
+                        slog_scope::debug!("epic_key is {}", epic_key);
+                        match data.epics.get(&issue.jira, epic_key) {
+                            None => {
+                                slog_scope::debug!("linked epic was not found");
+                                ""
+                            }
+                            Some(v) => v.custom_fields.epic_name.as_deref().unwrap_or_default(),
+                        }
+                    }
                 };
                 let col3 = issue.confluence_wiki_url(false);
                 let col4 = issue.confluence_wiki_schedule();
@@ -143,10 +152,12 @@ impl ConfluenceRoadmap {
             })
             .collect();
 
+        slog_scope::debug!("Roadmap report got {} epics", data.epics.all().len());
         for epic in data.epics.all().iter().filter_map(|(k, v)| {
             if local_epics.contains(k) {
                 Some(v)
             } else {
+                slog_scope::debug!("Skipping epic {}, doesn't present in local_epics", k.issue);
                 None
             }
         }) {

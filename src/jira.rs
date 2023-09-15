@@ -34,14 +34,24 @@ pub struct CustomField {
 }
 
 impl CustomField {
-    pub fn of_issue<DATA>(&self, issue: &crate::jira_types::IssueBean) -> Result<Option<DATA>>
-    where
-        for<'de> DATA: serde::Deserialize<'de>,
-    {
-        let r = match issue.fields.custom_fields.get(&self.name) {
-            None => None,
-            Some(v) => serde_json::value::from_value(v.clone())?,
+    pub fn of_issue(&self, issue: &crate::jira_types::IssueBean) -> Result<Option<String>> {
+        let r = match self.name.as_str() {
+            "summary" => Some(issue.fields.summary.clone()),
+            "description" => issue.fields.description.clone(),
+            "key" => Some(issue.key.clone()),
+            "id" => Some(issue.id.clone()),
+            "issuetype.name" => issue
+                .fields
+                .issuetype
+                .as_ref()
+                .map(|v| v.name.clone())
+                .flatten(),
+            v => match issue.fields.custom_fields.get(v) {
+                None => None,
+                Some(v) => serde_json::value::from_value(v.clone())?,
+            },
         };
+
         Ok(r)
     }
 
