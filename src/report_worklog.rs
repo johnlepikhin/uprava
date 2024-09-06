@@ -8,6 +8,8 @@ use crate::report::ReportIssue;
 pub struct Member {
     name: String,
     query_set: crate::report::QuerySet,
+    #[serde(default)]
+    description: Option<String>,
 }
 
 pub struct MemberResult {
@@ -32,12 +34,15 @@ impl MemberResult {
         col1
     }
 
-    pub async fn generate(&self) -> Result<String> {
+    pub async fn generate(&self, description: Option<&str>) -> Result<String> {
         let data = crate::report_data::ReportData::of_slice(&[], &self.issues, 0).await?;
 
         let mut output = String::new();
 
         writeln!(&mut output, "\nh1. {}\n", self.member.name)?;
+        if let Some(description) = description {
+            writeln!(&mut output, "{}", description)?
+        }
         writeln!(
             &mut output,
             "|| Описание таска || Эпик || Jira-таск || Сроки ||"
@@ -73,6 +78,8 @@ pub struct Worklog {
     confluence: crate::confluence::ConfluenceServer,
     space: String,
     title: String,
+    #[serde(default)]
+    description: Option<String>,
     members: Vec<Member>,
 }
 
@@ -97,8 +104,25 @@ impl Worklog {
         members_results.sort_by(|a, b| a.member.name.cmp(&b.member.name));
 
         let mut wiki_content = String::new();
+
+        if let Some(description) = &self.description {
+            writeln!(&mut wiki_content, "{}", description)?
+        }
+
         for member_result in &members_results {
-            writeln!(&mut wiki_content, "{}", member_result.generate().await?)?
+            writeln!(
+                &mut wiki_content,
+                "{}",
+                member_result
+                    .generate(
+                        member_result
+                            .member
+                            .description
+                            .as_ref()
+                            .map(|v| v.as_str())
+                    )
+                    .await?
+            )?
         }
 
         let get_result = self
