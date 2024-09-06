@@ -198,4 +198,7 @@ pub fn wiki_escape(s: &str) -> String {
         .replace('\n', "\\\\")
         .replace('{', "")
         .replace('}', "")
+        .replace('|', "")
+        .replace('[', "")
+        .replace(']', "")
 }
