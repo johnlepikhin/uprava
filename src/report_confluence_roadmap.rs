@@ -110,16 +110,16 @@ impl ConfluenceRoadmap {
                 let col2 = match &issue.custom_fields.epic_link {
                     None => {
                         slog_scope::debug!("epic_link was empty");
-                        ""
+                        String::new()
                     }
                     Some(epic_key) => {
                         slog_scope::debug!("epic_key is {}", epic_key);
                         match data.epics.get(&issue.jira, epic_key) {
                             None => {
                                 slog_scope::debug!("linked epic was not found");
-                                ""
+                                String::new()
                             }
-                            Some(v) => v.custom_fields.epic_name.as_deref().unwrap_or_default(),
+                            Some(v) => v.confluence_wiki_epic_url(),
                         }
                     }
                 };
@@ -139,7 +139,7 @@ impl ConfluenceRoadmap {
     ) -> Result<String> {
         let mut result = String::new();
         writeln!(&mut result, "\nh1. Эпики\n")?;
-        writeln!(&mut result, "|| Эпик || Описание эпика ||")?;
+        writeln!(&mut result, "|| Эпик || Описание эпика || Обоснование ||")?;
 
         let local_epics: HashSet<_> = issues
             .iter()
@@ -167,12 +167,13 @@ impl ConfluenceRoadmap {
 
                 writeln!(
                     &mut result,
-                    "| [{}|{}] | {} |",
+                    "| [{}|{}] | {} | {} |",
                     crate::confluence::wiki_escape(epic_name),
                     issue_url,
+                    crate::confluence::wiki_escape(epic.issue.fields.summary.as_str()),
                     crate::confluence::wiki_escape(
-                        epic.custom_fields.reason.as_deref().unwrap_or("")
-                    ),
+                        &epic.custom_fields.reason.as_deref().unwrap_or_default()
+                    )
                 )?
             }
         }
@@ -189,10 +190,10 @@ impl ConfluenceRoadmap {
         for issue in issues {
             let col1 = self.get_task(issue);
             let col2 = match &issue.custom_fields.epic_link {
-                None => "",
+                None => String::new(),
                 Some(epic_key) => match data.epics.get(&issue.jira, epic_key) {
-                    None => "",
-                    Some(v) => v.custom_fields.epic_name.as_deref().unwrap_or_default(),
+                    None => String::new(),
+                    Some(v) => v.confluence_wiki_epic_url(),
                 },
             };
 

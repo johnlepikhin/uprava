@@ -61,6 +61,15 @@ impl ReportIssue {
         )
     }
 
+    pub fn confluence_wiki_epic_url(&self) -> String {
+        let url = self.url();
+        format!(
+            "[{}|{}]",
+            self.custom_fields.epic_name.as_deref().unwrap_or_default(),
+            url,
+        )
+    }
+
     pub fn confluence_wiki_schedule(&self) -> String {
         let duration = self.custom_fields.plan();
         let planned_end = self

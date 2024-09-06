@@ -57,10 +57,10 @@ impl MemberResult {
         for issue in issues {
             let col1 = self.get_task(issue);
             let col2 = match &issue.custom_fields.epic_link {
-                None => "",
+                None => String::new(),
                 Some(epic_key) => match data.epics.get(&issue.jira, epic_key) {
-                    None => "",
-                    Some(v) => v.custom_fields.epic_name.as_deref().unwrap_or_default(),
+                    None => String::new(),
+                    Some(v) => v.confluence_wiki_epic_url(),
                 },
             };
             let col3 = issue.confluence_wiki_url(false);
