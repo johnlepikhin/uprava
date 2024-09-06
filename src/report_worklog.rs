@@ -43,36 +43,11 @@ impl MemberResult {
             "|| Описание таска || Эпик || Jira-таск || Сроки ||"
         )?;
 
-        let mut issues: Vec<_> = self
+        let issues: Vec<_> = self
             .issues
             .iter()
             .filter(|issue| issue.entity_type == crate::report::ReportIssueType::ReportMember)
             .collect();
-        issues.sort_by(|a, b| {
-            a.custom_fields
-                .planned_end
-                .is_none()
-                .cmp(&b.custom_fields.planned_end.is_none())
-                .then_with(|| {
-                    a.custom_fields
-                        .planned_end
-                        .cmp(&b.custom_fields.planned_end)
-                        .then_with(|| {
-                            a.custom_fields
-                                .planned_start
-                                .is_none()
-                                .cmp(&b.custom_fields.planned_start.is_none())
-                                .then_with(|| {
-                                    a.custom_fields
-                                        .planned_start
-                                        .cmp(&b.custom_fields.planned_start)
-                                        .then_with(|| {
-                                            a.issue.fields.created.cmp(&b.issue.fields.created)
-                                        })
-                                })
-                        })
-                })
-        });
 
         for issue in issues {
             let col1 = self.get_task(issue);
