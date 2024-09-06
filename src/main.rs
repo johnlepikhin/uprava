@@ -313,12 +313,23 @@ impl CmdReportMake {
 #[derive(Subcommand, Debug)]
 enum CmdReport {
     Make(CmdReportMake),
+    MakeAll,
 }
 
 impl CmdReport {
     pub async fn run(&self, config: crate::config::Config) -> Result<()> {
         match self {
             CmdReport::Make(v) => v.run(config).await,
+            CmdReport::MakeAll => {
+                for (name, _) in config.reports.iter() {
+                    slog_scope::info!("Running report {:?}", name);
+                    let report = CmdReportMake {
+                        report: name.clone(),
+                    };
+                    report.run(config.clone()).await?;
+                }
+                Ok(())
+            }
         }
     }
 }
