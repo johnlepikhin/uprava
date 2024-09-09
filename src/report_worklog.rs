@@ -15,6 +15,8 @@ pub struct Member {
 pub struct MemberResult {
     member: Member,
     issues: Vec<ReportIssue>,
+    show_author: bool,
+    show_assignee: bool,
 }
 
 impl MemberResult {
@@ -29,6 +31,35 @@ impl MemberResult {
                 col1,
                 crate::confluence::wiki_escape(reason)
             )
+        }
+        if self.show_author {
+            slog_scope::debug!("Author: {:?}", issue.issue.fields.creator);
+            col1 = format!(
+                "{}\\\\ \\\\Автор: {}",
+                col1,
+                crate::confluence::wiki_escape(
+                    &issue
+                        .issue
+                        .fields
+                        .creator
+                        .display_name
+                        .as_deref()
+                        .unwrap_or("не определен")
+                )
+            )
+        }
+
+        if self.show_assignee {
+            slog_scope::debug!("Assignee: {:?}", issue.issue.fields.assignee);
+            if let Some(assignee) = &issue.issue.fields.assignee {
+                col1 = format!(
+                    "{}\\\\ \\\\Исполнитель: {}",
+                    col1,
+                    crate::confluence::wiki_escape(
+                        &assignee.display_name.as_deref().unwrap_or("не назначен")
+                    )
+                )
+            }
         }
 
         col1
@@ -80,6 +111,10 @@ pub struct Worklog {
     title: String,
     #[serde(default)]
     description: Option<String>,
+    #[serde(default)]
+    show_author: bool,
+    #[serde(default)]
+    show_assignee: bool,
     members: Vec<Member>,
 }
 
@@ -98,7 +133,12 @@ impl Worklog {
         while let Some(pair) = join_set.join_next().await {
             let (result, member) = pair?;
             let issues = result?;
-            members_results.push(MemberResult { member, issues })
+            members_results.push(MemberResult {
+                member,
+                issues,
+                show_author: self.show_author,
+                show_assignee: self.show_assignee,
+            })
         }
 
         members_results.sort_by(|a, b| a.member.name.cmp(&b.member.name));
