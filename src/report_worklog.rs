@@ -5,6 +5,18 @@ use std::{fmt::Write, sync::Arc};
 use crate::report::ReportIssue;
 
 #[derive(Serialize, Deserialize, Clone)]
+pub enum ExtraField {
+    CustomField(String),
+    Schedule,
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+pub struct ExtraColumn {
+    name: String,
+    field: ExtraField,
+}
+
+#[derive(Serialize, Deserialize, Clone)]
 pub struct Member {
     name: String,
     query_set: crate::report::QuerySet,
@@ -15,16 +27,32 @@ pub struct Member {
 pub struct MemberResult {
     member: Member,
     issues: Vec<ReportIssue>,
-    show_author: bool,
-    show_assignee: bool,
+    // show_author: bool,
+    // show_assignee: bool,
+    // extra_columns: Vec<ExtraColumn>,
 }
 
 impl MemberResult {
-    fn get_task(&self, issue: &crate::report::ReportIssue) -> String {
-        let mut col1 = format!(
-            " *{}*",
-            crate::confluence::wiki_escape(&issue.issue.fields.summary)
-        );
+    fn get_task(&self, issue: &crate::report::ReportIssue, report: &Worklog) -> String {
+        let summary = match report.title_length_limit {
+            Some(v) => {
+                let indices = issue
+                    .issue
+                    .fields
+                    .summary
+                    .char_indices()
+                    .collect::<Vec<_>>();
+                if indices.len() > v {
+                    let end = indices.iter().map(|(i, _)| *i).nth(v).unwrap();
+                    format!("{} …", &issue.issue.fields.summary[..end])
+                } else {
+                    issue.issue.fields.summary.clone()
+                }
+            }
+            None => issue.issue.fields.summary.clone(),
+        };
+
+        let mut col1 = format!(" *{}*", crate::confluence::wiki_escape(&summary));
         if let Some(reason) = &issue.custom_fields.reason {
             col1 = format!(
                 "{}\\\\ \\\\{}",
@@ -32,7 +60,7 @@ impl MemberResult {
                 crate::confluence::wiki_escape(reason)
             )
         }
-        if self.show_author {
+        if report.show_author {
             slog_scope::debug!("Author: {:?}", issue.issue.fields.creator);
             col1 = format!(
                 "{}\\\\ \\\\Автор: {}",
@@ -49,7 +77,7 @@ impl MemberResult {
             )
         }
 
-        if self.show_assignee {
+        if report.show_assignee {
             slog_scope::debug!("Assignee: {:?}", issue.issue.fields.assignee);
             if let Some(assignee) = &issue.issue.fields.assignee {
                 col1 = format!(
@@ -65,18 +93,24 @@ impl MemberResult {
         col1
     }
 
-    pub async fn generate(&self, description: Option<&str>) -> Result<String> {
+    pub async fn generate(&self, report: &Worklog) -> Result<String> {
         let data = crate::report_data::ReportData::of_slice(&[], &self.issues, 0).await?;
 
         let mut output = String::new();
 
         writeln!(&mut output, "\nh1. {}\n", self.member.name)?;
-        if let Some(description) = description {
+        if let Some(description) = &self.member.description {
             writeln!(&mut output, "{}", description)?
         }
         writeln!(
             &mut output,
-            "|| Описание таска || Эпик || Jira-таск || Сроки ||"
+            "|| Описание таска || Эпик || Jira-таск ||{}",
+            report
+                .extra_columns
+                .iter()
+                .map(|v| format!(" {} ||", v.name))
+                .collect::<Vec<_>>()
+                .join("")
         )?;
 
         let issues: Vec<_> = self
@@ -86,7 +120,7 @@ impl MemberResult {
             .collect();
 
         for issue in issues {
-            let col1 = self.get_task(issue);
+            let col1 = self.get_task(issue, report);
             let col2 = match &issue.custom_fields.epic_link {
                 None => String::new(),
                 Some(epic_key) => match data.epics.get(&issue.jira, epic_key) {
@@ -95,9 +129,18 @@ impl MemberResult {
                 },
             };
             let col3 = issue.confluence_wiki_url(false);
-            let col4 = issue.confluence_wiki_schedule();
 
-            writeln!(&mut output, "| {} | {} | {} | {} |", col1, col2, col3, col4)?
+            write!(&mut output, "| {col1} | {col2} | {col3} |")?;
+
+            for extra_column in &report.extra_columns {
+                let value = match &extra_column.field {
+                    ExtraField::CustomField(v) => issue.custom_field_str(v).unwrap_or_default(),
+                    ExtraField::Schedule => issue.confluence_wiki_schedule(),
+                };
+                write!(&mut output, " {value} |")?
+            }
+
+            writeln!(&mut output)?;
         }
 
         Ok(output)
@@ -115,6 +158,10 @@ pub struct Worklog {
     show_author: bool,
     #[serde(default)]
     show_assignee: bool,
+    #[serde(default)]
+    extra_columns: Vec<ExtraColumn>,
+    #[serde(default)]
+    title_length_limit: Option<usize>,
     members: Vec<Member>,
 }
 
@@ -134,12 +181,7 @@ impl Worklog {
         while let Some(pair) = join_set.join_next().await {
             let (result, member) = pair?;
             let issues = result?;
-            members_results.push(MemberResult {
-                member,
-                issues,
-                show_author: self.show_author,
-                show_assignee: self.show_assignee,
-            })
+            members_results.push(MemberResult { member, issues })
         }
 
         members_results.sort_by(|a, b| a.member.name.cmp(&b.member.name));
@@ -151,13 +193,7 @@ impl Worklog {
         }
 
         for member_result in &members_results {
-            writeln!(
-                &mut wiki_content,
-                "{}",
-                member_result
-                    .generate(member_result.member.description.as_deref())
-                    .await?
-            )?
+            writeln!(&mut wiki_content, "{}", member_result.generate(self).await?)?
         }
 
         let get_result = self
