@@ -11,6 +11,7 @@ mod report;
 mod report_confluence_roadmap;
 mod report_data;
 mod report_dependency_graph;
+mod report_storypoints;
 mod report_worklog;
 mod serde;
 
@@ -304,6 +305,7 @@ impl CmdReportMake {
         match &report.0 {
             report::Report::ConfluenceRoadmap(v) => v.make(config).await?,
             report::Report::Worklog(v) => v.make(config).await?,
+            report::Report::StoryPoints(v) => v.make(config).await?,
         }
 
         Ok(())

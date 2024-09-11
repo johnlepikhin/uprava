@@ -90,6 +90,22 @@ impl ReportIssue {
             duration
         }
     }
+
+    pub fn custom_field_f64(&self, field: &str) -> Option<f64> {
+        self.issue
+            .fields
+            .custom_fields
+            .get(field)
+            .and_then(|f| f.as_f64())
+    }
+
+    pub fn custom_field_str(&self, field: &str) -> Option<String> {
+        self.issue
+            .fields
+            .custom_fields
+            .get(field)
+            .map(|f| f.to_string())
+    }
 }
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -156,4 +172,6 @@ pub enum Report {
     ConfluenceRoadmap(crate::report_confluence_roadmap::ConfluenceRoadmap),
     #[serde(with = "serde_yaml::with::singleton_map")]
     Worklog(crate::report_worklog::Worklog),
+    #[serde(with = "serde_yaml::with::singleton_map")]
+    StoryPoints(crate::report_storypoints::StoryPoints),
 }
