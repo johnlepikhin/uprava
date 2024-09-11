@@ -9,6 +9,7 @@ pub enum GroupBy {
     Reporter,
     Assignee,
     Epic,
+    Label,
 }
 
 impl GroupBy {
@@ -17,36 +18,38 @@ impl GroupBy {
             GroupBy::Reporter => "Автор",
             GroupBy::Assignee => "Исполнитель",
             GroupBy::Epic => "Эпик",
+            GroupBy::Label => "Метка",
         }
     }
 
-    pub fn get_title(
+    pub fn get_titles(
         &self,
         issue: &crate::report::ReportIssue,
         data: &crate::report_data::ReportData,
-    ) -> String {
+    ) -> Vec<String> {
         match self {
-            GroupBy::Reporter => issue
+            GroupBy::Reporter => vec![issue
                 .issue
                 .fields
                 .creator
                 .display_name
                 .clone()
-                .unwrap_or("не определен".to_owned()),
-            GroupBy::Assignee => issue
+                .unwrap_or("не определен".to_owned())],
+            GroupBy::Assignee => vec![issue
                 .issue
                 .fields
                 .assignee
                 .as_ref()
                 .and_then(|v| v.display_name.clone())
-                .unwrap_or("не назначен".to_owned()),
-            GroupBy::Epic => issue
+                .unwrap_or("не назначен".to_owned())],
+            GroupBy::Epic => vec![issue
                 .custom_fields
                 .epic_link
                 .as_ref()
                 .and_then(|epic_key| data.epics.get(&issue.jira, epic_key))
                 .map(|v| v.confluence_wiki_epic_url())
-                .unwrap_or_default(),
+                .unwrap_or_default()],
+            GroupBy::Label => issue.issue.fields.labels.clone().unwrap_or_default(),
         }
     }
 }
@@ -84,12 +87,14 @@ impl MemberResult {
 
         let mut sums = HashMap::new();
         for issue in &self.issues {
-            let title = self.member.group_by.get_title(issue, &data);
+            let titles = self.member.group_by.get_titles(issue, &data);
             let story_points = issue
                 .custom_field_f64(&self.member.story_points_field)
                 .unwrap_or_default();
-            let ent = sums.entry(title).or_insert(0);
-            *ent += story_points as i64;
+            for title in titles {
+                let ent = sums.entry(title).or_insert(0);
+                *ent += story_points as i64;
+            }
         }
 
         let mut keys = sums.keys().collect::<Vec<_>>();
