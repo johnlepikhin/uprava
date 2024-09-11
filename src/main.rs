@@ -16,7 +16,7 @@ mod serde;
 
 extern crate slog_scope;
 
-use std::io::Read;
+use std::{io::Read, sync::Arc};
 
 use anyhow::{bail, Result};
 use clap::{Args, CommandFactory, Parser, Subcommand};
@@ -296,14 +296,14 @@ struct CmdReportMake {
 }
 
 impl CmdReportMake {
-    pub async fn run(&self, config: crate::config::Config) -> Result<()> {
+    pub async fn run(&self, config: Arc<crate::config::Config>) -> Result<()> {
         let report = match config.reports.get(&self.report) {
             None => bail!("Report {:?} is not defined in config file", self.report),
-            Some(v) => v,
+            Some(v) => v.clone(),
         };
         match &report.0 {
-            report::Report::ConfluenceRoadmap(v) => v.make().await?,
-            report::Report::Worklog(v) => v.make().await?,
+            report::Report::ConfluenceRoadmap(v) => v.make(config).await?,
+            report::Report::Worklog(v) => v.make(config).await?,
         }
 
         Ok(())
@@ -318,6 +318,7 @@ enum CmdReport {
 
 impl CmdReport {
     pub async fn run(&self, config: crate::config::Config) -> Result<()> {
+        let config = Arc::new(config);
         match self {
             CmdReport::Make(v) => v.run(config).await,
             CmdReport::MakeAll => {

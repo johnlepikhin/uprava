@@ -1,5 +1,5 @@
-use std::collections::HashSet;
 use std::fmt::Write;
+use std::{collections::HashSet, sync::Arc};
 
 use anyhow::{bail, Result};
 use serde::{Deserialize, Serialize};
@@ -258,8 +258,8 @@ impl ConfluenceRoadmap {
         Ok(())
     }
 
-    pub async fn make(&self) -> Result<()> {
-        let issues_list = self.query_set.get_issues().await?;
+    pub async fn make(&self, config: Arc<crate::config::Config>) -> Result<()> {
+        let issues_list = self.query_set.get_issues(config).await?;
         let data = crate::report_data::ReportData::of_slice(
             &self.foreign_relations,
             &issues_list,

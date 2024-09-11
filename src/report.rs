@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 
@@ -114,17 +116,21 @@ pub struct ForeignRelation {
 pub struct QuerySet(Vec<crate::config::JiraQuery>);
 
 impl QuerySet {
-    pub async fn get_issues(&self) -> Result<Vec<ReportIssue>> {
+    pub async fn get_issues(&self, config: Arc<crate::config::Config>) -> Result<Vec<ReportIssue>> {
         let mut issues_list = Vec::new();
         let mut join_set = tokio::task::JoinSet::new();
         for query in &self.0 {
             let query_clone = query.clone();
+            let config = config.clone();
             let _abort_handle = join_set.spawn(async move {
+                let mut query_string = query_clone.query.replace('\n', " ").trim().to_string();
+                for (subst_key, subst_value) in &config.substitutions {
+                    query_string = query_string.replace(&format!("%{subst_key}%"), &subst_value);
+                }
+                slog_scope::info!("Querying JIRA: {}", query_string);
                 let handler = query_clone
                     .jira
-                    .search_all(&crate::jira::SearchGetParams::new(
-                        query_clone.query.replace('\n', " ").trim(),
-                    ))
+                    .search_all(&crate::jira::SearchGetParams::new(&query_string))
                     .await;
                 (handler, query_clone)
             });

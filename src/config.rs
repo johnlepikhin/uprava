@@ -29,6 +29,8 @@ pub struct Config {
     pub confluence_instances: HashMap<String, ConfluenceServer>,
     #[serde(default)]
     pub reports: HashMap<String, Report>,
+    #[serde(default)]
+    pub substitutions: HashMap<String, String>,
 }
 
 impl Config {

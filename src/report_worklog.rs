@@ -1,6 +1,6 @@
 use anyhow::{bail, Result};
 use serde::{Deserialize, Serialize};
-use std::fmt::Write;
+use std::{fmt::Write, sync::Arc};
 
 use crate::report::ReportIssue;
 
@@ -119,12 +119,13 @@ pub struct Worklog {
 }
 
 impl Worklog {
-    pub async fn make(&self) -> Result<()> {
+    pub async fn make(&self, config: Arc<crate::config::Config>) -> Result<()> {
         let mut join_set = tokio::task::JoinSet::new();
         for member in &self.members {
             let member_clone = member.clone();
+            let config = config.clone();
             let _abort_handle = join_set.spawn(async move {
-                let handler = member_clone.query_set.get_issues().await;
+                let handler = member_clone.query_set.get_issues(config).await;
                 (handler, member_clone)
             });
         }
