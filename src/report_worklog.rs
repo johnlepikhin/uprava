@@ -5,9 +5,44 @@ use std::{fmt::Write, sync::Arc};
 use crate::report::ReportIssue;
 
 #[derive(Serialize, Deserialize, Clone)]
+pub struct ExtraFieldSetRecord {
+    prefix: String,
+    field: ExtraField,
+}
+
+impl ExtraFieldSetRecord {
+    pub fn value(&self, issue: &ReportIssue) -> String {
+        format!("{}{}", self.prefix, self.field.value(issue))
+    }
+}
+
+#[derive(Serialize, Deserialize, Clone)]
 pub enum ExtraField {
     CustomField(String),
     Schedule,
+    Priority,
+    Set(Vec<ExtraFieldSetRecord>),
+}
+
+impl ExtraField {
+    pub fn value(&self, issue: &ReportIssue) -> String {
+        match self {
+            ExtraField::CustomField(v) => issue.custom_field_str(v).unwrap_or_default(),
+            ExtraField::Schedule => issue.confluence_wiki_schedule(),
+            ExtraField::Priority => issue
+                .issue
+                .fields
+                .priority
+                .as_ref()
+                .and_then(|v| v.name.clone())
+                .unwrap_or_default(),
+            ExtraField::Set(v) => v
+                .iter()
+                .map(|v| v.value(issue))
+                .collect::<Vec<_>>()
+                .join("\\\\"),
+        }
+    }
 }
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -133,10 +168,7 @@ impl MemberResult {
             write!(&mut output, "| {col1} | {col2} | {col3} |")?;
 
             for extra_column in &report.extra_columns {
-                let value = match &extra_column.field {
-                    ExtraField::CustomField(v) => issue.custom_field_str(v).unwrap_or_default(),
-                    ExtraField::Schedule => issue.confluence_wiki_schedule(),
-                };
+                let value = extra_column.field.value(issue);
                 write!(&mut output, " {value} |")?
             }
 
