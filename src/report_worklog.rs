@@ -38,7 +38,7 @@ impl MemberResult {
                 "{}\\\\ \\\\Автор: {}",
                 col1,
                 crate::confluence::wiki_escape(
-                    &issue
+                    issue
                         .issue
                         .fields
                         .creator
@@ -56,7 +56,7 @@ impl MemberResult {
                     "{}\\\\ \\\\Исполнитель: {}",
                     col1,
                     crate::confluence::wiki_escape(
-                        &assignee.display_name.as_deref().unwrap_or("не назначен")
+                        assignee.display_name.as_deref().unwrap_or("не назначен")
                     )
                 )
             }
@@ -155,13 +155,7 @@ impl Worklog {
                 &mut wiki_content,
                 "{}",
                 member_result
-                    .generate(
-                        member_result
-                            .member
-                            .description
-                            .as_ref()
-                            .map(|v| v.as_str())
-                    )
+                    .generate(member_result.member.description.as_deref())
                     .await?
             )?
         }

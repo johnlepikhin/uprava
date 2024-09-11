@@ -125,7 +125,7 @@ impl QuerySet {
             let _abort_handle = join_set.spawn(async move {
                 let mut query_string = query_clone.query.replace('\n', " ").trim().to_string();
                 for (subst_key, subst_value) in &config.substitutions {
-                    query_string = query_string.replace(&format!("%{subst_key}%"), &subst_value);
+                    query_string = query_string.replace(&format!("%{subst_key}%"), subst_value);
                 }
                 slog_scope::info!("Querying JIRA: {}", query_string);
                 let handler = query_clone

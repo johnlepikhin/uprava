@@ -32,11 +32,7 @@ impl IssueID {
     }
 
     pub fn as_string(&self) -> String {
-        format!("{}/{}", self.jira.base_url, self.issue)
-            .replace(':', "_")
-            .replace('/', "_")
-            .replace('-', "_")
-            .replace('.', "_")
+        format!("{}/{}", self.jira.base_url, self.issue).replace([':', '/', '-', '.'], "_")
     }
 }
 

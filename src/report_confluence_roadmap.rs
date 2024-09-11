@@ -172,7 +172,7 @@ impl ConfluenceRoadmap {
                     issue_url,
                     crate::confluence::wiki_escape(epic.issue.fields.summary.as_str()),
                     crate::confluence::wiki_escape(
-                        &epic.custom_fields.reason.as_deref().unwrap_or_default()
+                        epic.custom_fields.reason.as_deref().unwrap_or_default()
                     )
                 )?
             }

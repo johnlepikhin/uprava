@@ -8,11 +8,7 @@ pub struct DependencyGraph;
 
 impl DependencyGraph {
     fn issue_id(issue: &crate::report::ReportIssue) -> String {
-        format!("{}/{}", issue.jira.base_url, issue.issue.key)
-            .replace(':', "_")
-            .replace('/', "_")
-            .replace('-', "_")
-            .replace('.', "_")
+        format!("{}/{}", issue.jira.base_url, issue.issue.key).replace([':', '/', '-', '.'], "_")
     }
 
     fn double_string_escape(s: &str) -> String {
@@ -187,7 +183,7 @@ impl DependencyGraph {
         let svg_file = tempfile::NamedTempFile::new()?;
 
         std::process::Command::new("dot")
-            .args(&[
+            .args([
                 "-Tsvg",
                 "-o",
                 svg_file.path().to_str().unwrap(),

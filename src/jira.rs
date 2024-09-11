@@ -40,12 +40,7 @@ impl CustomField {
             "description" => issue.fields.description.clone(),
             "key" => Some(issue.key.clone()),
             "id" => Some(issue.id.clone()),
-            "issuetype.name" => issue
-                .fields
-                .issuetype
-                .as_ref()
-                .map(|v| v.name.clone())
-                .flatten(),
+            "issuetype.name" => issue.fields.issuetype.as_ref().and_then(|v| v.name.clone()),
             v => match issue.fields.custom_fields.get(v) {
                 None => None,
                 Some(v) => serde_json::value::from_value(v.clone())?,
