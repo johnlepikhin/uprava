@@ -21,6 +21,7 @@ pub enum ExtraField {
     CustomField(String),
     Schedule,
     Priority,
+    Labels,
     Set(Vec<ExtraFieldSetRecord>),
 }
 
@@ -36,6 +37,13 @@ impl ExtraField {
                 .as_ref()
                 .and_then(|v| v.name.clone())
                 .unwrap_or_default(),
+            ExtraField::Labels => issue
+                .issue
+                .fields
+                .labels
+                .as_deref()
+                .unwrap_or_default()
+                .join(", "),
             ExtraField::Set(v) => v
                 .iter()
                 .map(|v| v.value(issue))
