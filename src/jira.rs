@@ -117,13 +117,19 @@ impl IssueCustomFields {
 }
 
 #[derive(Serialize, Deserialize, Clone, Hash, PartialEq, Eq, Debug)]
+pub struct RelationMap {
+    pub name: String,
+    pub equals_to: String,
+}
+
+#[derive(Serialize, Deserialize, Clone, Hash, PartialEq, Eq, Debug)]
 pub struct JiraServer {
     pub base_url: url::Url,
     #[serde(with = "serde_yaml::with::singleton_map")]
     pub access: crate::authentication::Access,
     pub custom_fields: IssueCustomFieldsConfig,
     #[serde(default)]
-    pub relations_map: Vec<(String, String)>,
+    pub relations_map: Vec<RelationMap>,
 }
 
 impl JiraServer {

@@ -130,11 +130,11 @@ impl ReportData {
                     .jira
                     .relations_map
                     .iter()
-                    .filter(|(k, _)| k == kind)
+                    .filter(|map| &map.name == kind)
                     .collect::<Vec<_>>()
                     .first()
                 {
-                    Some((_, v)) => v,
+                    Some(map) => &map.equals_to,
                     None => kind,
                 };
                 Some((issue.jira.clone(), key.to_owned(), kind.to_owned(), true))
@@ -152,11 +152,11 @@ impl ReportData {
                     .jira
                     .relations_map
                     .iter()
-                    .filter(|(k, _)| k == kind)
+                    .filter(|map| &map.name == kind)
                     .collect::<Vec<_>>()
                     .first()
                 {
-                    Some((_, v)) => v,
+                    Some(map) => &map.equals_to,
                     None => kind,
                 };
                 Some((issue.jira.clone(), key.to_owned(), kind.to_owned(), false))
