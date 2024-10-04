@@ -22,7 +22,7 @@ use std::{io::Read, sync::Arc};
 use anyhow::{bail, Result};
 use clap::{Args, CommandFactory, Parser, Subcommand};
 
-const APP_CONFIG: &str = "uprava.yaml";
+const APP_CONFIG: &str = "~/.config/uprava.yaml";
 
 #[derive(Args, Debug)]
 struct CmdJiraGetIssue {
@@ -385,7 +385,8 @@ impl Application {
     pub fn run(&self) {
         let _logger_guard = slog_envlogger::init().unwrap();
 
-        let config = crate::config::Config::read(&self.config).expect("Config");
+        let config_path = shellexpand::tilde(&self.config).to_string();
+        let config = crate::config::Config::read(&config_path).expect("Config");
 
         let rt = tokio::runtime::Runtime::new().expect("Async runtime");
         rt.block_on(self.run_command(config)).expect("Runtime")
