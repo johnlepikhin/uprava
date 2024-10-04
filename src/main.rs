@@ -316,6 +316,7 @@ impl CmdReportMake {
 enum CmdReport {
     Make(CmdReportMake),
     MakeAll,
+    List,
 }
 
 impl CmdReport {
@@ -330,6 +331,14 @@ impl CmdReport {
                         report: name.clone(),
                     };
                     report.run(config.clone()).await?;
+                }
+                Ok(())
+            }
+            CmdReport::List => {
+                let mut names: Vec<_> = config.reports.keys().collect();
+                names.sort();
+                for name in names {
+                    println!("{}", name);
                 }
                 Ok(())
             }
