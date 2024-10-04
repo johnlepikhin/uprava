@@ -21,3 +21,4 @@ tokio = { version = "1.21", features = ["full", "rt"] }
 html2text = "0.4"
 tempfile = "3.3"
 mime_guess = "2.0"
+shellexpand = "3.1.0"
