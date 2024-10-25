@@ -71,16 +71,17 @@ impl DependencyGraph {
                     "".to_owned()
                 };
                 let duration = {
-                    let planned_end = issue.custom_fields.planned_end.unwrap_or_else(|| {
-                        chrono::Utc::now().date() + chrono::Duration::days(100000)
-                    });
-                    let planned_start = issue.custom_fields.planned_start.unwrap_or_else(|| {
-                        chrono::Utc::now().date() + chrono::Duration::days(100000)
-                    });
-                    if planned_end - chrono::Duration::days(3) < chrono::Utc::now().date() {
+                    let planned_end = issue
+                        .custom_fields
+                        .planned_end
+                        .unwrap_or_else(|| chrono::Utc::now() + chrono::Duration::days(100000));
+                    let planned_start = issue
+                        .custom_fields
+                        .planned_start
+                        .unwrap_or_else(|| chrono::Utc::now() + chrono::Duration::days(100000));
+                    if planned_end - chrono::Duration::days(3) < chrono::Utc::now() {
                         format!("<font color=\"red\">{}</font>", duration)
-                    } else if planned_start - chrono::Duration::days(3) < chrono::Utc::now().date()
-                    {
+                    } else if planned_start - chrono::Duration::days(3) < chrono::Utc::now() {
                         format!("<font color=\"green\">{}</font>", duration)
                     } else {
                         duration

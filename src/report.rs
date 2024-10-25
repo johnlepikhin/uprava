@@ -77,14 +77,14 @@ impl ReportIssue {
         let planned_end = self
             .custom_fields
             .planned_end
-            .unwrap_or_else(|| chrono::Utc::now().date() + chrono::Duration::days(100000));
+            .unwrap_or_else(|| chrono::Utc::now() + chrono::Duration::days(100000));
         let planned_start = self
             .custom_fields
             .planned_start
-            .unwrap_or_else(|| chrono::Utc::now().date() + chrono::Duration::days(100000));
-        if planned_end - chrono::Duration::days(3) < chrono::Utc::now().date() {
+            .unwrap_or_else(|| chrono::Utc::now() + chrono::Duration::days(100000));
+        if planned_end - chrono::Duration::days(3) < chrono::Utc::now() {
             format!("{{color:red}}{}{{color}}", duration)
-        } else if planned_start - chrono::Duration::days(3) < chrono::Utc::now().date() {
+        } else if planned_start - chrono::Duration::days(3) < chrono::Utc::now() {
             format!("{{color:green}}{}{{color}}", duration)
         } else {
             duration

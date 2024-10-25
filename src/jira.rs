@@ -53,7 +53,7 @@ impl CustomField {
     pub fn date_of_issue(
         &self,
         issue: &crate::jira_types::IssueBean,
-    ) -> Result<Option<chrono::Date<chrono::Utc>>> {
+    ) -> Result<Option<chrono::DateTime<chrono::Utc>>> {
         let s: Option<String> = self.of_issue(issue)?;
         match s {
             None => Ok(None),
@@ -61,7 +61,7 @@ impl CustomField {
                 let v = format!("\"{}T00:00:00.000000Z\"", v);
                 slog_scope::debug!("Parsing DateTime from string: {}", v);
                 let r: chrono::DateTime<chrono::Utc> = serde_json::from_str(&v)?;
-                Ok(Some(r.date()))
+                Ok(Some(r))
             }
         }
     }
@@ -81,8 +81,8 @@ pub struct IssueCustomFields {
     pub reason: Option<String>,
     pub epic_link: Option<String>,
     pub epic_name: Option<String>,
-    pub planned_start: Option<chrono::Date<chrono::Utc>>,
-    pub planned_end: Option<chrono::Date<chrono::Utc>>,
+    pub planned_start: Option<chrono::DateTime<chrono::Utc>>,
+    pub planned_end: Option<chrono::DateTime<chrono::Utc>>,
 }
 
 impl IssueCustomFields {
@@ -96,7 +96,7 @@ impl IssueCustomFields {
         })
     }
 
-    fn format_date(date: &Option<chrono::Date<chrono::Utc>>) -> String {
+    fn format_date(date: &Option<chrono::DateTime<chrono::Utc>>) -> String {
         match date {
             None => "?".to_owned(),
             Some(v) => format!("{}-{:02}-{:02}", v.year(), v.month(), v.day()),
@@ -155,6 +155,8 @@ impl JiraServer {
                 format!("JSESSIONID={}", secret.get()?.trim()),
             ),
         };
+
+        slog_scope::debug!("Querying JIRA URL: {}", url);
 
         let response = request.send().await?.error_for_status()?.text().await?;
 
